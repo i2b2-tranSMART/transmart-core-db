@@ -27,43 +27,42 @@ package org.transmartproject.db.ontology
  */
 class ModifierDimensionView {
 
-    // it's a view!
+	// it's a view!
 
-    String path
-    String code
-    String name
-    Long   level
-    String studyId
-    String nodeType
-    String valueType
-    String unit
-    String visitInd = 'N'
+	String code
+	Long level
+	String name
+	String nodeType
+	String path
+	String studyId
+	String unit
+	String valueType
+	String visitInd = 'N'
 
-    static transients = ['visit']
+	static transients = ['visit']
 
-    Boolean visit
+	Boolean visit
 
-    Boolean isVisit() {
-        visitInd == 'Y'
-    }
+	Boolean isVisit() {
+		visitInd == 'Y'
+	}
 
-    void setVisit(Boolean visit) {
-        visitInd == visit == null ? null :
-                visit ? 'Y' : 'N'
-    }
+	void setVisit(Boolean visit) {
+		visitInd == visit == null ? null : visit ? 'Y' : 'N'
+	}
 
-    static mapping = {
-        table   schema: 'i2b2demodata', name: 'modifier_dimension_view'
-        id      name: 'path', generator: 'assigned'
-        version false
+	static mapping = {
+		table schema: 'i2b2demodata', name: 'modifier_dimension_view'
+		id name: 'path', generator: 'assigned'
+		version false
 
-        path      column: 'modifier_path'
-        code      column: 'modifier_cd'
-        name      column: 'name_char'
-        level     column: 'modifier_level'
-        studyId   column: 'sourcesystem_cd'
-        nodeType  column: 'modifier_node_type' // known values: {L, F}
-        valueType column: 'valtype_cd'
-        unit      column: 'std_units'
-    }
+		code column: 'modifier_cd'
+		level column: 'modifier_level'
+		name column: 'name_char'
+		nodeType column: 'modifier_node_type' // known values: {L, F}
+		path column: 'modifier_path'
+		studyId column: 'sourcesystem_cd'
+		unit column: 'std_units'
+		valueType column: 'valtype_cd'
+	}
 }

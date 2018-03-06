@@ -28,96 +28,87 @@ import org.transmartproject.db.accesscontrol.AccessControlChecks
 
 class User extends PrincipalCoreDb implements org.transmartproject.core.users.User {
 
-    @Autowired
-    AccessControlChecks accessControlChecks
+	@Autowired
+	AccessControlChecks accessControlChecks
 
-    String  email
-    Boolean emailShow
-    String  hash
-    String  realName
-    String  username
+	String email
+	Boolean emailShow
+	String hash
+	String realName
+	String username
 
-    /* not mapped (only on thehyve/master) */
-    //String federatedId
+	/* not mapped (only on thehyve/master) */
+	//String federatedId
 
-    static hasMany = [
-            roles:  RoleCoreDb,
-            groups: Group
-    ]
+	static hasMany = [groups: Group,
+	                  roles : RoleCoreDb]
 
-    static transients = ['accessControlChecks', 'admin', 'accessibleStudies']
+	static transients = ['accessControlChecks', 'admin', 'accessibleStudies']
 
-    static mapping = {
-        //table   schema: 'searchapp', name: 'search_auth_user'
-        // ^^ Bug! doesn't work
-        table   name: 'searchapp.search_auth_user'
+	static mapping = {
+		table 'searchapp.search_auth_user'
+		version false
+		cache usage: 'read-only', include: 'non-lazy' /* don't cache groups */
 
-        hash    column: 'passwd'
+		hash column: 'passwd'
 
-        // no way to fetch the roles' properties themselves :(
-        // http://stackoverflow.com/questions/4208728
-        roles   joinTable: [//name:   'search_role_auth_user',
-                            name:   'searchapp.search_role_auth_user',
-                            key:    'authorities_id',
-                            column: 'people_id'], // insane column naming!
-                fetch: FetchMode.JOIN
+		// no way to fetch the roles' properties themselves :(
+		// http://stackoverflow.com/questions/4208728
+		roles joinTable: [name  : 'searchapp.search_role_auth_user',
+		                  key   : 'authorities_id',
+		                  column: 'people_id'], // insane column naming!
+				fetch: FetchMode.JOIN
 
-        groups  joinTable: [//name:   'search_auth_group_member',
-                            name:   'searchapp.search_auth_group_member',
-                            key:    'auth_user_id',
-                            column: 'auth_group_id']
+		groups joinTable: [name  : 'searchapp.search_auth_group_member',
+		                   key   : 'auth_user_id',
+		                   column: 'auth_group_id']
 
-        discriminator name: 'USER', column: 'unique_id'
+		discriminator name: 'USER', column: 'unique_id'
 
-        cache   usage: 'read-only', include: 'non-lazy' /* don't cache groups */
+		realName column: 'user_real_name'
+	}
 
-        realName column: 'user_real_name'
+	static constraints = {
+		email nullable: true
+		emailShow nullable: true
+		// federatedId nullable: true, unique: true
+		hash nullable: true
+		realName nullable: true
+		username nullable: true
+	}
 
-        version false
-    }
+	/* not in api */
 
-    static constraints = {
-        email        nullable: true, maxSize: 255
-        emailShow    nullable: true
-        hash         nullable: true, maxSize: 255
-        realName     nullable: true, maxSize: 255
-        username     nullable: true, maxSize: 255
-        //federatedId nullable: true, unique: true
-    }
+	boolean isAdmin() {
+		roles.find { it.authority == RoleCoreDb.ROLE_ADMIN_AUTHORITY }
+	}
 
-    /* not in api */
-    boolean isAdmin() {
-        roles.find { it.authority == RoleCoreDb.ROLE_ADMIN_AUTHORITY }
-    }
+	@Override
+	boolean canPerform(ProtectedOperation protectedOperation, ProtectedResource protectedResource) {
 
-    @Override
-    boolean canPerform(ProtectedOperation protectedOperation,
-                       ProtectedResource protectedResource) {
+		if (!accessControlChecks.respondsTo('canPerform',
+				[User, ProtectedOperation, protectedResource.getClass()] as Object[])) {
+			throw new UnsupportedOperationException("Do not know how to check " +
+					"access for user $this, operation $protectedOperation on " +
+					"$protectedResource")
+		}
 
-        if (!accessControlChecks.respondsTo('canPerform',
-                [User, ProtectedOperation, protectedResource.getClass()] as Object[])) {
-            throw new UnsupportedOperationException("Do not know how to check " +
-                    "access for user $this, operation $protectedOperation on " +
-                    "$protectedResource")
-        }
+		if (admin) {
+			/* administrators bypass all the checks */
+			log.debug "Bypassing check for $protectedOperation on " +
+					"$protectedResource for user $this because he is an " +
+					"administrator"
+			return true
+		}
 
-        if (admin) {
-            /* administrators bypass all the checks */
-            log.debug "Bypassing check for $protectedOperation on " +
-                    "$protectedResource for user $this because he is an " +
-                    "administrator"
-            return true
-        }
+		accessControlChecks.canPerform(this, protectedOperation, protectedResource)
+	}
 
-        accessControlChecks.canPerform(this,
-                                       protectedOperation,
-                                       protectedResource)
-    }
+	/* not in API */
 
-    /* not in API */
-    Set<Study> getAccessibleStudies() {
-        def studies = accessControlChecks.getAccessibleStudiesForUser this
-        log.debug "User $this has access to studies: ${studies*.id}"
-        studies
-    }
+	Set<Study> getAccessibleStudies() {
+		def studies = accessControlChecks.getAccessibleStudiesForUser(this)
+		log.debug "User $this has access to studies: ${studies*.id}"
+		studies
+	}
 }

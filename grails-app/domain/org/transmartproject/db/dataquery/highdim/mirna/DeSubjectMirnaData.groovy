@@ -26,49 +26,34 @@ import org.transmartproject.db.i2b2data.PatientDimension
 @EqualsAndHashCode(includes = 'assay,probe')
 class DeSubjectMirnaData implements Serializable {
 
-    BigDecimal rawIntensity
-    BigDecimal logIntensity
-    BigDecimal zscore
+	BigDecimal logIntensity
+	BigDecimal rawIntensity
+	BigDecimal zscore
 
-    DeQpcrMirnaAnnotation jProbe //see comment on mapping
+	DeQpcrMirnaAnnotation jProbe //see comment on mapping
 
-    // irrelevant
-    //String trialSource
-    //String trialName
-    //PatientDimension patient
+	static belongsTo = [
+			assay  : DeSubjectSampleMapping,
+			patient: PatientDimension,
+			probe  : DeQpcrMirnaAnnotation
+	]
 
-    static belongsTo = [
-            assay: DeSubjectSampleMapping,
-            probe: DeQpcrMirnaAnnotation,
-            patient: PatientDimension
-    ]
+	static mapping = {
+		table schema: 'deapp'
+		id composite: ['assay', 'probe']
+		version false
 
+		probe column: 'probeset_id'
 
-    static mapping = {
-        table schema: 'deapp'
-        id    composite: ['assay', 'probe']
+		// this is needed due to a Criteria bug.
+		// see https://forum.hibernate.org/viewtopic.php?f=1&t=1012372
+		jProbe column: 'probeset_id', insertable: false, updateable: false
+	}
 
-        assay   column: 'assay_id'
-        probe   column: 'probeset_id'
-        patient column: 'patient_id'
-
-        // irrelevant
-        //patient column: 'patient_id'
-
-        // this is needed due to a Criteria bug.
-        // see https://forum.hibernate.org/viewtopic.php?f=1&t=1012372
-        jProbe column: 'probeset_id', insertable: false, updateable: false
-
-        version false
-    }
-
-    static constraints = {
-        assay        nullable: true
-        rawIntensity nullable: true, scale: 4
-        logIntensity nullable: true, scale: 4
-        zscore       nullable: true, scale: 4
-        //trialSource  nullable: true, maxSize: 200
-        //trialName    nullable: true, maxSize: 50
-        //patient      nullable: true
-    }
+	static constraints = {
+		assay nullable: true
+		logIntensity nullable: true, scale: 4
+		rawIntensity nullable: true, scale: 4
+		zscore nullable: true, scale: 4
+	}
 }

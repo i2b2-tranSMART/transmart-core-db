@@ -26,50 +26,50 @@ import org.transmartproject.db.dataquery.highdim.rnaseq.DeSubjectRnaseqData
 
 class DeChromosomalRegion implements Region {
 
-    String  chromosome
-    Long    start
-    Long    end
-    Integer numberOfProbes
-    String  name
-    String  cytoband
-    String  geneSymbol
-    Long    geneId
-    String  gplId
-    /* unused */
-    String  organism
+	String chromosome
+	String cytoband
+	Long end
+	Long geneId
+	String geneSymbol
+	String gplId
+	String name
+	Integer numberOfProbes
+	Long start
 
-    static belongsTo = [platform: DeGplInfo]
-    static hasMany = [dataRowsRnaSeq: DeSubjectRnaseqData,
-                      dataRowsAcgh: DeSubjectAcghData]
-    static mappedBy = [dataRowsRnaSeq: 'region',
-                       dataRowsAcgh: 'region']
+	String organism // unused
+
+	static hasMany = [dataRowsRnaSeq: DeSubjectRnaseqData,
+	                  dataRowsAcgh  : DeSubjectAcghData]
+
+	static belongsTo = [platform: DeGplInfo]
+
+	static mappedBy = [dataRowsRnaSeq: 'region',
+	                   dataRowsAcgh  : 'region']
 
 	static mapping = {
-        table          schema: 'deapp'
+		table schema: 'deapp'
+		id column: 'region_id', generator: 'assigned'
+		version false
 
-        id             column:  "region_id",  generator: "assigned"
-
-        start          column: 'start_bp'
-        end            column: 'end_bp'
-        name           column: 'region_name'
-        numberOfProbes column: 'num_probes'
-        platform       column: 'gpl_id'
-        gplId          insertable: false, updateable: false
-        version false
-
+		end column: 'end_bp'
+		gplId insertable: false, updateable: false
+		name column: 'region_name'
+		numberOfProbes column: 'num_probes'
+		platform column: 'gpl_id'
+		start column: 'start_bp'
 	}
 
 	static constraints = {
-        platform       nullable: true
-        chromosome     nullable: true, maxSize: 2
-        start          nullable: true
-        end            nullable: true
-        numberOfProbes nullable: true
-        name           nullable: true, maxSize: 100
-        cytoband       nullable: true, maxSize: 100
-        geneSymbol     nullable: true, maxSize: 100
-        geneId         nullable: true
-        organism       nullable: true, maxSize: 200
+		chromosome nullable: true, maxSize: 2
+		cytoband nullable: true, maxSize: 100
+		end nullable: true
+		geneId nullable: true
+		geneSymbol nullable: true, maxSize: 100
+		name nullable: true, maxSize: 100
+		numberOfProbes nullable: true
+		organism nullable: true, maxSize: 200
+		platform nullable: true
+		start nullable: true
 	}
 
 }

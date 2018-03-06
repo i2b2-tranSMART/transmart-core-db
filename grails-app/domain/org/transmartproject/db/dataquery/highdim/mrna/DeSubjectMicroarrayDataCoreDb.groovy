@@ -23,61 +23,41 @@ import groovy.transform.EqualsAndHashCode
 import org.transmartproject.db.dataquery.highdim.DeSubjectSampleMapping
 import org.transmartproject.db.i2b2data.PatientDimension
 
-@EqualsAndHashCode(includes = [ 'assay', 'probe' ])
+@EqualsAndHashCode(includes = ['assay', 'probe'])
 class DeSubjectMicroarrayDataCoreDb implements Serializable {
 
-    String     trialName
-    BigDecimal rawIntensity
-    BigDecimal logIntensity /* log2(rawIntensity) */
-    BigDecimal zscore
+	BigDecimal logIntensity // log2(rawIntensity)
+	BigDecimal rawIntensity
+	String trialName
+	BigDecimal zscore
 
-    /* not mapped (only used in Oracle?) */
-    //String     trialSource
+	DeMrnaAnnotationCoreDb jProbe //see comment on mapping
 
-    /* not mapped (not used in practice) */
-    //Long       sampleId
-    //String     subjectId
-    //BigDecimal newRaw
-    //BigDecimal newLog
-    //BigDecimal newZscore
+	static belongsTo = [
+			assay  : DeSubjectSampleMapping,
+			patient: PatientDimension,
+			probe  : DeMrnaAnnotationCoreDb
+	]
 
-    DeMrnaAnnotationCoreDb jProbe //see comment on mapping
+	static mapping = {
+		table 'deapp.de_subject_microarray_data'
+		id composite: ['assay', 'probe']
+		version false
 
-    static belongsTo = [
-            probe: DeMrnaAnnotationCoreDb,
-            assay: DeSubjectSampleMapping,
-            patient: PatientDimension,
-    ]
+		probe column: 'probeset_id'
 
-    static mapping = {
-        table    schema: 'deapp', name: 'de_subject_microarray_data'
+		// this is needed due to a Criteria bug.
+		// see https://forum.hibernate.org/viewtopic.php?f=1&t=1012372
+		jProbe column: 'probeset_id', insertable: false, updateable: false
+	}
 
-        id       composite: [ 'assay', 'probe' ]
-
-        probe    column: 'probeset_id'
-        assay    column: 'assay_id'
-        patient  column: 'patient_id'
-
-        // this is needed due to a Criteria bug.
-        // see https://forum.hibernate.org/viewtopic.php?f=1&t=1012372
-        jProbe   column: 'probeset_id', insertable: false, updateable: false
-
-        version  false
-    }
-
-    static constraints = {
-        trialName    nullable: true, maxSize: 50
-        probe        nullable: true
-        assay        nullable: true
-        patient      nullable: true
-        rawIntensity nullable: true
-        logIntensity nullable: true, scale: 4
-        zscore       nullable: true
-        //trialSource  nullable: true, maxSize: 200
-        //sampleId     nullable: true
-        //subjectId    nullable: true, maxSize: 50
-        //newRaw       nullable: true, scale:   4
-        //newLog       nullable: true, scale:   4
-        //newZscore    nullable: true, scale:   4
-    }
+	static constraints = {
+		assay nullable: true
+		logIntensity nullable: true, scale: 4
+		patient nullable: true
+		probe nullable: true
+		rawIntensity nullable: true
+		trialName nullable: true, maxSize: 50
+		zscore nullable: true
+	}
 }

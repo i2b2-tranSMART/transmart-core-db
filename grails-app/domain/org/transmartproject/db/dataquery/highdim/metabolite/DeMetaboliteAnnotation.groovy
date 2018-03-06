@@ -23,20 +23,20 @@ import org.transmartproject.db.dataquery.highdim.DeGplInfo
 
 class DeMetaboliteAnnotation {
 
-    String biochemicalName
-    String hmdbId
+	String biochemicalName
+	String hmdbId
 
-    static belongsTo = [ platform: DeGplInfo ]
+	static hasMany = [dataRows: DeSubjectMetabolomicsData]
 
-    static hasMany =   [ dataRows: DeSubjectMetabolomicsData ]
+	static belongsTo = [platform: DeGplInfo]
 
-    static mappedBy =  [ dataRows: 'annotation' ]
+	static mappedBy = [dataRows: 'annotation']
 
-    static mapping = {
-        table    schema:    'deapp'
-        id       generator: 'assigned'
-        platform column:    'gpl_id'
+	static mapping = {
+		table schema: 'deapp'
+		id generator: 'assigned'
+		version false
 
-        version   false
-    }
+		platform column: 'gpl_id'
+	}
 }

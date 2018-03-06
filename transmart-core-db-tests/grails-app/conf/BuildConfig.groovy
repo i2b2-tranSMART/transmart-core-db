@@ -16,6 +16,8 @@ grails.project.dependency.resolution = {
 	}
 
 	dependencies {
+		compile 'org.transmartproject:transmart-core-api:16.2'
+
 		test 'org.hamcrest:hamcrest-library:1.3'
 		test 'org.hamcrest:hamcrest-core:1.3'
 

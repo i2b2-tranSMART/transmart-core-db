@@ -23,42 +23,37 @@ import org.transmartproject.db.dataquery.highdim.DeGplInfo
 
 class DeRnaseqAnnotation implements Serializable {
 
-    String transcriptId
-    String geneSymbol
-    String geneId /* the Entrez accession; "primary external id" */
+	String geneId // the Entrez accession; "primary external id"
+	String geneSymbol
+	String transcriptId
 
-    // irrelevant
-    //String organism
+	static transients = ['id']
 
-    static transients = ['id']
+	static hasMany = ['dataRows': DeSubjectRnaData]
 
-    static belongsTo = [ platform: DeGplInfo ]
+	static belongsTo = [platform: DeGplInfo]
 
-    static hasMany = ['dataRows': DeSubjectRnaData]
+	static mappedBy = ['dataRows': 'annotation']
 
-    static mappedBy = ['dataRows': 'annotation']
+	static mapping = {
+		table schema: 'deapp'
+		id name: 'transcriptId', generator: 'assigned'
+		version false
 
-    static mapping = {
-        table    schema: 'deapp'
-        id       name: 'transcriptId', generator: 'assigned'
+		platform column: 'gpl_id'
+	}
 
-        platform column: 'gpl_id'
-        version  false
-    }
+	static constraints = {
+		geneId nullable: true, maxSize: 50
+		geneSymbol nullable: true, maxSize: 50
+		transcriptId maxSize: 50
+	}
 
-    static constraints = {
-        transcriptId maxSize: 50
-        geneSymbol   nullable: true, maxSize: 50
-        geneId       nullable: true, maxSize: 50
+	void setId(String id) {
+		transcriptId = id
+	}
 
-        //organism nullable: true, maxSize: 30
-    }
-
-    void setId(String id) {
-        transcriptId = id
-    }
-
-    String getId() {
-        transcriptId
-    }
+	String getId() {
+		transcriptId
+	}
 }

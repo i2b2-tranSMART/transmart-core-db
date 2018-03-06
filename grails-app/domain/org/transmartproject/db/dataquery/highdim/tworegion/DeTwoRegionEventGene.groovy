@@ -4,34 +4,30 @@ import groovy.transform.EqualsAndHashCode
 import org.transmartproject.core.dataquery.highdim.tworegion.EventGene
 
 /**
- * Created by j.hudecek on 7-1-2015.
+ * @author j.hudecek
  */
 @EqualsAndHashCode()
 class DeTwoRegionEventGene implements Serializable, EventGene {
 
-    String geneId
-    String effect
-    DeTwoRegionEvent event
+	String effect
+	DeTwoRegionEvent event
+	String geneId
 
-    Long getEventId() {
-        return event.id
-    }
+	Long getEventId() {
+		event.id
+	}
 
-    static constraints = {
-        geneId(nullable: true, maxSize: 50)
-        effect(nullable: true, maxSize: 500)
-    }
+	static constraints = {
+		effect nullable: true, maxSize: 500
+		geneId nullable: true, maxSize: 50
+	}
 
-    static mapping = {
-        table schema: 'deapp', name: 'de_two_region_event_gene'
-        version false
-        id column: 'two_region_event_gene_id'
+	static mapping = {
+		table schema: 'deapp', name: 'de_two_region_event_gene'
+		id column: 'two_region_event_gene_id'
+		version false
 
-        geneId column: 'gene_id'
-        effect column: 'effect'
-        /* references */
-        event column: 'event_id'
-        event fetch: 'join'
-    }
+		event fetch: 'join'
+	}
 }
 

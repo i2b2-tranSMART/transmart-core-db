@@ -23,42 +23,35 @@ import org.transmartproject.db.dataquery.highdim.DeGplInfo
 
 class DeProteinAnnotation {
 
-    String   peptide
-    String   uniprotId
-    String   uniprotName
-    String   gplId
+	String chromosome
+	Long endBp
+	String gplId
+	String peptide
+	Long startBp
+	String uniprotId
+	String uniprotName
 
-    String   chromosome
-    Long     startBp
-    Long     endBp
+	static hasMany = [dataRows: DeSubjectProteinData]
 
-    // irrelevant
-    //String biomarkerId
-    //String organism
+	static belongsTo = [platform: DeGplInfo]
 
-    static belongsTo = [ platform: DeGplInfo ]
+	static mappedBy = [dataRows: 'annotation']
 
-    static hasMany = [ dataRows: DeSubjectProteinData ]
+	static mapping = {
+		table schema: 'deapp'
+		id generator: 'assigned'
+		version false
 
-    static mappedBy = [ dataRows: 'annotation' ]
+		gplId insertable: false, updateable: false
+		platform column: 'gpl_id'
+	}
 
-    static mapping = {
-        table    schema:    'deapp'
-        id       generator: 'assigned'
-        platform column:    'gpl_id'
-        gplId    insertable: false, updateable: false
-        version  false
-    }
-
-    static constraints = {
-        peptide     maxSize:  800
-        uniprotId   nullable: true, maxSize: 200
-        uniprotName nullable: true, maxSize: 200
-        chromosome  nullable: true
-        startBp     nullable: true
-        endBp       nullable: true
-
-        //biomarkerId nullable: true, maxSize: 400
-        //organism    nullable: true, maxSize: 800
-    }
+	static constraints = {
+		chromosome nullable: true
+		endBp nullable: true
+		peptide maxSize: 800
+		startBp nullable: true
+		uniprotId nullable: true, maxSize: 200
+		uniprotName nullable: true, maxSize: 200
+	}
 }

@@ -23,36 +23,29 @@ import org.transmartproject.db.dataquery.highdim.DeGplInfo
 
 class DeQpcrMirnaAnnotation implements Serializable {
 
-    String mirnaId
-    String detector
-    String gplId
+	String detector
+	String gplId
+	String mirnaId
 
-    static belongsTo = [ platform: DeGplInfo ]
-    static hasMany = [dataRows: DeSubjectMirnaData]
-    static mappedBy = [dataRows: 'probe']
+	static hasMany = [dataRows: DeSubjectMirnaData]
 
-    // unused or irrelevant:
-    //String idRef
-    //String probeId
+	static belongsTo = [platform: DeGplInfo]
 
-    //String organism
+	static mappedBy = [dataRows: 'probe']
 
-    static mapping = {
-        table    schema: 'deapp'
-        id       column: 'probeset_id', generator: 'assigned'
-        platform column: 'gpl_id'
-        detector column: 'mirna_symbol' // column name is scheduled to be changed
-        gplId    insertable: false, updateable: false
-        version  false
-    }
+	static mapping = {
+		table schema: 'deapp'
+		id column: 'probeset_id', generator: 'assigned'
+		version false
 
-    static constraints = {
-        mirnaId  nullable: true, maxSize: 100
-        detector nullable: true, maxSize: 100
-        platform nullable: true
-        // unused or irrelevant:
-        //idRef       nullable: true, maxSize: 100
-        //probeId     nullable: true, maxSize: 100
-        //organism    nullable: true, maxSize: 2000
-    }
+		platform column: 'gpl_id'
+		detector column: 'mirna_symbol' // column name is scheduled to be changed
+		gplId insertable: false, updateable: false
+	}
+
+	static constraints = {
+		mirnaId nullable: true, maxSize: 100
+		detector nullable: true, maxSize: 100
+		platform nullable: true
+	}
 }

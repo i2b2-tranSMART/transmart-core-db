@@ -23,52 +23,37 @@ import groovy.transform.EqualsAndHashCode
 import org.transmartproject.db.dataquery.highdim.DeSubjectSampleMapping
 import org.transmartproject.db.i2b2data.PatientDimension
 
-@EqualsAndHashCode(includes = [ 'assay', 'annotation' ])
+@EqualsAndHashCode(includes = ['assay', 'annotation'])
 class DeSubjectRnaData implements Serializable {
 
-    BigDecimal rawIntensity
-    BigDecimal logIntensity
-    BigDecimal zscore
+	BigDecimal logIntensity
+	BigDecimal rawIntensity
+	BigDecimal zscore
 
-    DeRnaseqAnnotation jAnnotation //due to criteria bug
+	DeRnaseqAnnotation jAnnotation //due to criteria bug
 
-    // irrelevant
-    //String     trialSource
-    //String     trialName
-    //Long       patientId
+	static belongsTo = [
+			annotation: DeRnaseqAnnotation,
+			assay     : DeSubjectSampleMapping,
+			patient   : PatientDimension
+	]
 
-    static belongsTo = [
-            annotation: DeRnaseqAnnotation,
-            assay:      DeSubjectSampleMapping,
-            patient:    PatientDimension
-    ]
+	static mapping = {
+		table schema: 'deapp'
+		id composite: ['assay', 'annotation']
+		version false
 
-    static mapping = {
-        table schema: 'deapp'
+		annotation column: 'probeset_id' // poor name; no probes involved
 
-        id composite: [ 'assay', 'annotation' ]
+		// here due to criteria bug
+		jAnnotation column: 'probeset_id', insertable: false, updateable: false
+	}
 
-        annotation  column: 'probeset_id' // poor name; no probes involved
-        assay       column: 'assay_id'
-        patient     column: 'patient_id'
-
-        // here due to criteria bug
-        jAnnotation column: 'probeset_id', insertable: false, updateable: false
-
-        version     false
-
-    }
-
-    static constraints = {
-        annotation   nullable: true
-        assay        nullable: true
-        rawIntensity nullable: true, scale: 4
-        logIntensity nullable: true, scale: 4
-        zscore       nullable: true, scale: 4
-
-        // irrelevant
-        //trialSource  nullable: true, maxSize: 200
-        //trialName    nullable: true, maxSize: 50
-        //patientId    nullable: true
-    }
+	static constraints = {
+		annotation nullable: true
+		assay nullable: true
+		logIntensity nullable: true, scale: 4
+		rawIntensity nullable: true, scale: 4
+		zscore nullable: true, scale: 4
+	}
 }

@@ -24,83 +24,77 @@ import org.transmartproject.core.ontology.Study
 
 class I2b2 extends AbstractI2b2Metadata implements Serializable {
 
-    BigDecimal   cTotalnum
-    String       cComment
-    String       mAppliedPath
-    Date         updateDate
-    Date         downloadDate
-    Date         importDate
-    String       sourcesystemCd
-    String       valuetypeCd
-    String       mExclusionCd
-    String       cPath
-    String       cSymbol
+	static final String backingTable = 'I2B2'
 
-    static String backingTable = 'I2B2'
+	BigDecimal cTotalnum
+	String cComment
+	String mAppliedPath
+	Date updateDate
+	Date downloadDate
+	Date importDate
+	String sourcesystemCd
+	String valuetypeCd
+	String mExclusionCd
+	String cPath
+	String cSymbol
 
-    static transients = AbstractI2b2Metadata.transients + ['studyId', 'study']
+	static transients = AbstractI2b2Metadata.transients + ['studyId', 'study']
 
-    static mapping = {
-        table    name: 'I2B2', schema: 'I2B2METADATA'
-        version  false
+	static mapping = {
+		table name: 'I2B2', schema: 'I2B2METADATA'
+		id composite: ['fullName', 'name'] // hibernate needs an id, see http://docs.jboss.org/hibernate/orm/3.3/reference/en/html/mapping.html#mapping-declaration-id
+		version false
 
-        /* hibernate needs an id, see
-         * http://docs.jboss.org/hibernate/orm/3.3/reference/en/html/mapping.html#mapping-declaration-id
-         */
-        id       composite: ['fullName', 'name']
+		AbstractI2b2Metadata.mapping.delegate = delegate
+		AbstractI2b2Metadata.mapping()
+	}
 
-        AbstractI2b2Metadata.mapping.delegate = delegate
-        AbstractI2b2Metadata.mapping()
-    }
+	static constraints = {
+		cComment nullable: true
+		cPath nullable: true, maxSize: 700
+		cSymbol nullable: true, maxSize: 50
+		cTotalnum nullable: true
+		downloadDate nullable: true
+		importDate nullable: true
+		mAppliedPath maxSize: 700
+		mExclusionCd nullable: true, maxSize: 25
+		sourcesystemCd nullable: true, maxSize: 50
+		valuetypeCd nullable: true, maxSize: 50
 
-    static constraints = {
-        cTotalnum      nullable: true
-        cComment       nullable: true
-        mAppliedPath   nullable: false, maxSize: 700
-        downloadDate   nullable: true
-        updateDate     nullable: false
-        importDate     nullable: true
-        sourcesystemCd nullable: true,  maxSize: 50
-        valuetypeCd    nullable: true,  maxSize: 50
-        mExclusionCd   nullable: true,  maxSize: 25
-        cPath          nullable: true,  maxSize: 700
-        cSymbol        nullable: true,  maxSize: 50
+		AbstractI2b2Metadata.constraints.delegate = delegate
+		AbstractI2b2Metadata.constraints()
+	}
 
-        AbstractI2b2Metadata.constraints.delegate = delegate
-        AbstractI2b2Metadata.constraints()
-    }
+	String getStudyId() {
+		def matcher = cComment =~ /(?<=^trial:).+/
+		if (matcher.find()) {
+			matcher.group 0
+		}
+	}
 
-    String getStudyId() {
-        def matcher = cComment =~ /(?<=^trial:).+/
-        if (matcher.find()) {
-            matcher.group 0
-        }
-    }
+	@Override
+	Study getStudy() {
+		def trial = studyId
 
-    @Override
-    Study getStudy() {
-        def trial = studyId
+		if (!trial) {
+			return null
+		}
 
-        if (!trial) {
-            return null
-        }
-
-        def query = sessionFactory.currentSession.createQuery '''
+		def query = sessionFactory.currentSession.createQuery '''
                 SELECT I
                 FROM I2b2 I, I2b2TrialNodes TN
                 WHERE (I.fullName = TN.fullName) AND
                 TN.trial = :trial'''
 
-        query.setParameter 'trial', trial
+		query.setParameter 'trial', trial
 
-        def res = query.list()
-        if (res.size() > 1) {
-            throw new UnexpectedResultException("More than one study with name $trial")
-        } else if (res.size() == 1) {
-            new StudyImpl(ontologyTerm: res[0], id: trial)
-        } else {
-            null
-        }
-    }
+		def res = query.list()
+		if (res.size() > 1) {
+			throw new UnexpectedResultException("More than one study with name $trial")
+		}
 
+		if (res.size() == 1) {
+			new StudyImpl(ontologyTerm: res[0], id: trial)
+		}
+	}
 }

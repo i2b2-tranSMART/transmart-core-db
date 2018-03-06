@@ -24,20 +24,15 @@ import groovy.transform.EqualsAndHashCode
 @EqualsAndHashCode(includes = 'patient,study')
 class PatientTrialCoreDb implements Serializable {
 
-    PatientDimension patient
-    String study
+	PatientDimension patient
+	String study
 
-    // unused
-    //String secureObjToken
+	static mapping = {
+		table 'i2b2demodata.patient_trial'
+		id composite: ['patient', 'study']
+		version false
 
-    static mapping = {
-        table   name: 'patient_trial', schema: 'i2b2demodata'
-
-        id      composite: ['patient', 'study']
-
-        patient column: 'patient_num'
-        study   column: 'trial',      index: 'trial_idx', unique: false
-
-        version false
-    }
+		patient column: 'patient_num'
+		study column: 'trial', index: 'trial_idx'
+	}
 }

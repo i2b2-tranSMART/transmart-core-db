@@ -21,27 +21,24 @@ package org.transmartproject.db.user
 
 class PrincipalCoreDb {
 
-    String  principalType
-    String  description
-    String  name
-    String  uniqueId
-    Boolean enabled
+	String description
+	Boolean enabled
+	String name
+	String principalType
+	String uniqueId
 
-    static mapping = {
-        table   schema:    'searchapp', name: 'search_auth_principal'
-        id      generator: 'assigned'
+	static mapping = {
+		table 'searchapp.search_auth_principal'
+		id generator: 'assigned'
+		version false
+		tablePerSubclass true
+	}
 
-        autoTimestamp true
-        version       false
-
-        tablePerSubclass true
-    }
-
-    static constraints = {
-        principalType nullable: true, maxSize: 255
-        description   nullable: true, maxSize: 255
-        name          nullable: true, maxSize: 255
-        uniqueId      nullable: true, maxSize: 255
-        enabled       nullable: true
-    }
+	static constraints = {
+		description nullable: true
+		enabled nullable: true
+		name nullable: true
+		principalType nullable: true
+		uniqueId nullable: true
+	}
 }
