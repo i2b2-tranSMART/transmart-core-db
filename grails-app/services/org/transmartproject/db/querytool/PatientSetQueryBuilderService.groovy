@@ -91,7 +91,7 @@ class PatientSetQueryBuilderService {
             [
                     id: panelNum++,
                     select: "SELECT patient_num " +
-                            "FROM observation_fact WHERE $bigPredicate AND concept_cd != 'SECURITY'",
+                            "FROM I2B2DEMODATA.observation_fact WHERE $bigPredicate AND concept_cd != 'SECURITY'",
                     invert: panel.invert,
             ]
         }.sort { a, b ->
@@ -141,7 +141,7 @@ class PatientSetQueryBuilderService {
             windowFunctionOrderBy = 'ORDER BY patient_num'
         }
 
-        def sql = "INSERT INTO qt_patient_set_collection (result_instance_id," +
+        def sql = "INSERT INTO I2B2DEMODATA.qt_patient_set_collection (result_instance_id," +
                 " patient_num, set_index) " +
                 "SELECT ${resultInstance.id}, P.patient_num, " +
                 " row_number() OVER ($windowFunctionOrderBy) " +
