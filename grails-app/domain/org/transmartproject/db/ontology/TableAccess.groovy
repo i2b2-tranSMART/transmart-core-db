@@ -51,7 +51,8 @@ class TableAccess extends AbstractQuerySpecifyingType implements OntologyTerm, S
 
 	static mapping = {
 		table 'I2B2METADATA.table_access'
-		id composite: ['tableCode'] // hibernate needs an id, see http://docs.jboss.org/hibernate/orm/3.3/reference/en/html/mapping.html#mapping-declaration-id
+		id composite: ['tableCode']
+		// hibernate needs an id, see http://docs.jboss.org/hibernate/orm/3.3/reference/en/html/mapping.html#mapping-declaration-id
 		version false
 
 		code column: 'C_BASECODE'
@@ -104,8 +105,8 @@ class TableAccess extends AbstractQuerySpecifyingType implements OntologyTerm, S
 
 	Class getOntologyTermDomainClassReferred() {
 		def domainClass = Holders.getGrailsApplication().domainClasses.find {
-					AbstractI2b2Metadata.isAssignableFrom(it.clazz) &&
-							tableName.equalsIgnoreCase(it.clazz.backingTable)
+			AbstractI2b2Metadata.isAssignableFrom(it.clazz) &&
+					tableName.equalsIgnoreCase(it.clazz.backingTable)
 		}
 		domainClass?.clazz
 	}
@@ -146,19 +147,18 @@ class TableAccess extends AbstractQuerySpecifyingType implements OntologyTerm, S
 		HibernateCriteriaBuilder c
 
 		/* extract table code from concept key and resolve it to a table name */
-		c = TableAccess.createCriteria()
+		c = createCriteria()
 		String tableName = c.get {
 			projections {
 				distinct('tableName')
 			}
-			eq('tableCode', this.conceptKey.tableCode)
+			eq('tableCode', conceptKey.tableCode)
 		}
 
 		/* validate this table name */
-		def domainClass = this.ontologyTermDomainClassReferred
+		def domainClass = ontologyTermDomainClassReferred
 		if (!domainClass) {
-			throw new RuntimeException("Metadata table ${tableName} is not " +
-					"mapped")
+			throw new RuntimeException("Metadata table ${tableName} is not mapped")
 		}
 
 		/* select level on the original table (is this really necessary?) */
@@ -174,13 +174,12 @@ class TableAccess extends AbstractQuerySpecifyingType implements OntologyTerm, S
 			}
 		}
 		if (parentLevel == null) {
-			throw new RuntimeException("Could not determine parent's level; " +
-					"could not find it in ${domainClass}'s table (fullname: " +
-					"$fullName)")
+			throw new RuntimeException("Could not determine parent's level; could not find it in " + domainClass.name +
+					"'s table (fullname: " + fullName + ")")
 		}
 
 		/* Finally select the relevant stuff */
-		def fullNameSearch = fullName.asLikeLiteral() + '%'
+		String fullNameSearch = fullName.asLikeLiteral() + '%'
 
 		c = domainClass.createCriteria()
 		c.list {
