@@ -20,13 +20,14 @@
 package org.transmartproject.db.dataquery.highdim
 
 import grails.orm.HibernateCriteriaBuilder
-import groovy.util.logging.Log4j
+import groovy.util.logging.Slf4j
 import org.hibernate.ScrollMode
 import org.hibernate.SessionFactory
 import org.hibernate.StatelessSession
 import org.transmartproject.core.dataquery.TabularResult
-import org.transmartproject.core.dataquery.highdim.HighDimensionResource
+import org.transmartproject.core.dataquery.assay.Assay
 import org.transmartproject.core.dataquery.highdim.HighDimensionDataTypeResource
+import org.transmartproject.core.dataquery.highdim.HighDimensionResource
 import org.transmartproject.core.dataquery.highdim.Platform
 import org.transmartproject.core.dataquery.highdim.assayconstraints.AssayConstraint
 import org.transmartproject.core.dataquery.highdim.dataconstraints.DataConstraint
@@ -45,277 +46,249 @@ import org.transmartproject.db.ontology.I2b2
 
 import static org.transmartproject.db.util.GormWorkarounds.getHibernateInCriterion
 
-@Log4j
+@Slf4j('logger')
 class HighDimensionDataTypeResourceImpl implements HighDimensionDataTypeResource {
 
-    HighDimensionResource highDimensionResource
-    protected HighDimensionDataTypeModule module
+	private static final int FETCH_SIZE = 10000
 
-    private static final int FETCH_SIZE = 10000
+	HighDimensionResource highDimensionResource
+	protected HighDimensionDataTypeModule module
 
-    HighDimensionDataTypeResourceImpl(HighDimensionDataTypeModule module) {
-        this.module = module
-    }
+	HighDimensionDataTypeResourceImpl(HighDimensionDataTypeModule module) {
+		this.module = module
+	}
 
-    // Lazy otherwise EqualsAndHashCode does not pick it up
-    @Lazy
-    String dataTypeName = module.name
+	// Lazy otherwise EqualsAndHashCode does not pick it up
+	@Lazy String dataTypeName = module.name
 
-    @Override
-    String getDataTypeDescription() {
-        module.description
-    }
+	String getDataTypeDescription() {
+		module.description
+	}
 
-    protected StatelessSession openSession() {
-        SessionFactory sessionFactory = module.sessionFactory
-        StatelessSession statelessSession = sessionFactory.openStatelessSession()
-        //To prevent out of memory exception for big data sets: fetch data from the database in the cursor mode.
-        statelessSession.connection().autoCommit = false
-        statelessSession
-    }
+	protected StatelessSession openSession() {
+		SessionFactory sessionFactory = module.sessionFactory
+		StatelessSession statelessSession = sessionFactory.openStatelessSession()
+		//To prevent out of memory exception for big data sets: fetch data from the database in the cursor mode.
+		statelessSession.connection().autoCommit = false
+		statelessSession
+	}
 
-    protected getAssayProperty() {
-        /* we could change this to inspect the associations of the root type and
-         * find the name of the association linking to DeSubjectSampleMapping */
-        'assay'
-    }
+	protected String getAssayProperty() {
+		/* we could change this to inspect the associations of the root type and
+		 * find the name of the association linking to DeSubjectSampleMapping */
+		'assay'
+	}
 
-    @Override
-    TabularResult retrieveData(List<AssayConstraint> assayConstraints,
-                                 List<DataConstraint> dataConstraints,
-                                 Projection projection) {
+	TabularResult retrieveData(List<AssayConstraint> assayConstraints, List<DataConstraint> dataConstraints,
+	                           Projection projection) {
 
-        // Each module should only return assays that match 
-        // the markertypes specified, in addition to the 
-        // constraints given
-        assayConstraints << new MarkerTypeCriteriaConstraint(
-                platformNames: module.platformMarkerTypes)
+		// Each module should only return assays that match
+		// the markertypes specified, in addition to the
+		// constraints given
+		assayConstraints << new MarkerTypeCriteriaConstraint(platformNames: module.platformMarkerTypes)
 
-        def assaysQuery = new AssayQuery(assayConstraints)
+		AssayQuery assaysQuery = new AssayQuery(assayConstraints)
 
-        def assays = assaysQuery.list()
-        if (!assays) {
-            throw new EmptySetException(
-                    'No assays satisfy the provided criteria')
-        }
+		List<Assay> assays = assaysQuery.list()
+		if (!assays) {
+			throw new EmptySetException('No assays satisfy the provided criteria')
+		}
 
-        HibernateCriteriaBuilder criteriaBuilder =
-            module.prepareDataQuery(projection, openSession())
+		HibernateCriteriaBuilder criteriaBuilder = module.prepareDataQuery(projection, openSession())
 
-        //We have to specify projection explicitly because of the grails bug
-        //https://jira.grails.org/browse/GRAILS-12107
-        criteriaBuilder.add(getHibernateInCriterion('assay.id', assaysQuery.forIds()))
+		//We have to specify projection explicitly because of the grails bug
+		//https://jira.grails.org/browse/GRAILS-12107
+		criteriaBuilder.add getHibernateInCriterion('assay.id', assaysQuery.forIds())
 
-        /* apply changes to criteria from projection, if any */
-        if (projection instanceof CriteriaProjection) {
-            projection.doWithCriteriaBuilder criteriaBuilder
-        }
+		/* apply changes to criteria from projection, if any */
+		if (projection instanceof CriteriaProjection) {
+			projection.doWithCriteriaBuilder criteriaBuilder
+		}
 
-        /* apply data constraints */
-        for (CriteriaDataConstraint dataConstraint in dataConstraints) {
-            dataConstraint.doWithCriteriaBuilder criteriaBuilder
-        }
+		/* apply data constraints */
+		for (CriteriaDataConstraint dataConstraint in dataConstraints) {
+			dataConstraint.doWithCriteriaBuilder criteriaBuilder
+		}
 
-        criteriaBuilder.instance.fetchSize = FETCH_SIZE
+		criteriaBuilder.instance.fetchSize = FETCH_SIZE
 
-        module.transformResults(
-                criteriaBuilder.instance.scroll(ScrollMode.FORWARD_ONLY),
-                assays.collect { new AssayColumnImpl(it) },
-                projection)
-    }
+		module.transformResults(
+				criteriaBuilder.instance.scroll(ScrollMode.FORWARD_ONLY),
+				assays.collect { new AssayColumnImpl(it) },
+				projection)
+	}
 
-    @Override
-    Set<String> getSupportedAssayConstraints() {
-        module.supportedAssayConstraints
-    }
+	Set<String> getSupportedAssayConstraints() {
+		module.supportedAssayConstraints
+	}
 
-    @Override
-    Set<String> getSupportedDataConstraints() {
-        module.supportedDataConstraints
-    }
+	Set<String> getSupportedDataConstraints() {
+		module.supportedDataConstraints
+	}
 
-    @Override
-    Set<String> getSupportedProjections() {
-        module.supportedProjections
-    }
+	Set<String> getSupportedProjections() {
+		module.supportedProjections
+	}
 
-    @Override
-    AssayConstraint createAssayConstraint(Map<String, Object> params, String name)
-            throws UnsupportedByDataTypeException {
-        module.createAssayConstraint params, name
-    }
+	AssayConstraint createAssayConstraint(Map<String, Object> params, String name)
+			throws UnsupportedByDataTypeException {
+		module.createAssayConstraint params, name
+	}
 
-    @Override
-    DataConstraint createDataConstraint(Map<String, Object> params, String name)
-            throws UnsupportedByDataTypeException {
-        module.createDataConstraint params, name
-    }
+	DataConstraint createDataConstraint(Map<String, Object> params, String name)
+			throws UnsupportedByDataTypeException {
+		module.createDataConstraint params, name
+	}
 
-    @Override
-    Projection createProjection(Map<String, Object> params, String name)
-            throws UnsupportedByDataTypeException {
-        module.createProjection params, name
-    }
+	Projection createProjection(Map<String, Object> params, String name)
+			throws UnsupportedByDataTypeException {
+		module.createProjection params, name
+	}
 
-    @Override
-    Projection createProjection(String name)
-            throws UnsupportedByDataTypeException{
-        createProjection([:], name)
-    }
+	Projection createProjection(String name) throws UnsupportedByDataTypeException {
+		createProjection([:], name)
+	}
 
-    @Override
-    boolean matchesPlatform(Platform platform) {
-        platform.markerType in module.platformMarkerTypes
-    }
+	boolean matchesPlatform(Platform platform) {
+		platform.markerType in module.platformMarkerTypes
+	}
 
-    @Override
-    Set<OntologyTerm> getAllOntologyTermsForDataTypeBy(QueryResult queryResult) {
-        I2b2.executeQuery '''
+	Set<OntologyTerm> getAllOntologyTermsForDataTypeBy(QueryResult queryResult) {
+		I2b2.executeQuery '''
             from I2b2 where code in
-                (select
-                    distinct ssm.conceptCode
+                (select distinct ssm.conceptCode
                 from QtPatientSetCollection ps, DeSubjectSampleMapping ssm
                 inner join ssm.platform as p
                 where p.markerType in (:markerTypes)
                     and ssm.patient = ps.patient
                     and ps.resultInstance.id = :resultInstanceId)
         ''', [markerTypes: module.platformMarkerTypes, resultInstanceId: queryResult.id]
-    }
+	}
 
-    @Override
-    List<String> searchAnnotation(String concept_code, String search_term, String search_property) {
-        if (!getSearchableAnnotationProperties().contains(search_property))
-            throw new InvalidArgumentsException("Expected search_property to be one of ${getSearchableAnnotationProperties()}, got $search_property")
-        module.searchAnnotation(concept_code, search_term, search_property)
-    }
+	List<String> searchAnnotation(String conceptCode, String searchTerm, String searchProperty) {
+		if (!getSearchableAnnotationProperties().contains(searchProperty)) {
+			throw new InvalidArgumentsException("Expected searchProperty to be one of ${getSearchableAnnotationProperties()}, got $searchProperty")
+		}
+		module.searchAnnotation(conceptCode, searchTerm, searchProperty)
+	}
 
-    @Override
-    List<String> getSearchableAnnotationProperties() {
-        module.getSearchableAnnotationProperties()
-    }
+	List<String> getSearchableAnnotationProperties() {
+		module.searchableAnnotationProperties
+	}
 
-    @Override
-    HighDimensionFilterType getHighDimensionFilterType() {
-        module.getHighDimensionFilterType()
-    }
+	HighDimensionFilterType getHighDimensionFilterType() {
+		module.highDimensionFilterType
+	}
 
-    @Override
-    List<String> getSearchableProjections() {
-        module.getSearchableProjections()
-    }
+	List<String> getSearchableProjections() {
+		module.searchableProjections
+	}
 
-    @Override
-    def getDistribution(ConstraintByOmicsValue constraint, String concept_key, Long result_instance_id = null) {
-        // first translate the ConstraintByOmicsValue to DataConstraints and AssayConstraints
-        def dataConstraints = []
-        def assayConstraints = []
-        dataConstraints.add(createDataConstraint([property: constraint.property, term: constraint.selector, concept_key: concept_key], DataConstraint.ANNOTATION_CONSTRAINT))
-        assayConstraints.add(createAssayConstraint([concept_key: concept_key], AssayConstraint.ONTOLOGY_TERM_CONSTRAINT))
-        if (result_instance_id != null)
-            assayConstraints.add(createAssayConstraint([result_instance_id: result_instance_id], AssayConstraint.PATIENT_SET_CONSTRAINT))
+	Map<Long, List> getDistribution(ConstraintByOmicsValue constraint, String conceptKey, Long resultInstanceId = null) {
+		// first translate the ConstraintByOmicsValue to DataConstraints and AssayConstraints
+		List<DataConstraint> dataConstraints = []
+		dataConstraints << createDataConstraint(
+				[property: constraint.property, term: constraint.selector, concept_key: conceptKey],
+				DataConstraint.ANNOTATION_CONSTRAINT)
 
-        // create the requested projection
-        def projection = createProjection([:], constraint.projectionType)
+		List<AssayConstraint> assayConstraints = []
+		assayConstraints << createAssayConstraint([concept_key: conceptKey], AssayConstraint.ONTOLOGY_TERM_CONSTRAINT)
+		if (resultInstanceId != null) {
+			assayConstraints << createAssayConstraint([result_instance_id: resultInstanceId], AssayConstraint.PATIENT_SET_CONSTRAINT)
+		}
 
-        // get the data
-        def retrieved = retrieveData(assayConstraints, dataConstraints, projection)
-        def data = [:]
+		// create the requested projection
+		Projection projection = createProjection([:], constraint.projectionType)
 
-        // transform to a map where the keys are patient ids, and the values are the values of probes of the patient
-        retrieved.rows.each { row ->
-            row.assayIndexMap.each { assay, index ->
-                if (row.data[index] != null) data.get(assay.patient.id, []).add(row.data[index])
-            }
-        }
-        retrieved.close()
+		// get the data
+		TabularResult retrieved = retrieveData(assayConstraints, dataConstraints, projection)
+		Map<Long, List> data = [:]
 
-        // get the aggregator for our marker type
-        def aggregator = highDimensionConstraintValuesAggregator(constraint)
-        data.each {it.setValue(aggregator(it.getValue()))} // set the value of each Map.Entry to the aggregated value
+		// transform to a map where the keys are patient ids, and the values are the values of probes of the patient
+		for (row in retrieved.rows) {
+			row.assayIndexMap.each { assay, index ->
+				if (row.data[index] != null) {
+					data.get(assay.patient.id, []) << row.data[index]
+				}
+			}
+		}
+		retrieved.close()
 
-        // get the filter so we can apply it to the aggregated values
-        def filter = highDimensionConstraintClosure(constraint)
-        data.findAll {filter(it.getValue())}
-    }
+		// get the aggregator for our marker type
+		Closure aggregator = highDimensionConstraintValuesAggregator(constraint)
+		data.each { it.value = aggregator(it.value) } // set the value of each Map.Entry to the aggregated value
 
-    /**
-     * Creates a closure that takes a List and returns a single value, to be used as an aggregator for the given
-     * ConstraintByOmicsValue. In many cases there will be multiple values per patient (e.g. multiple probes for
-     * a given gene name), and the values need to be aggregated. Currently this method always returns a closure
-     * that calculates the average.
-     * @param constraint The omics value constraint
-     * @return The aggregator closure
-     */
-    protected def highDimensionConstraintValuesAggregator(ConstraintByOmicsValue constraint) {
-        {values -> values.sum() / values.size()}
-    }
+		// get the filter so we can apply it to the aggregated values
+		Closure filter = highDimensionConstraintClosure(constraint)
+		data.findAll { filter(it.value) }
+	}
 
-    /**
-     * Creates a closure that takes a value and returns a boolean. It will return true if the value meets the given
-     * constraint defined in the ConstraintByOmicsValue, and false otherwise. Ideally we would want to do this at
-     * the database, however we can not create a 'HAVING' SQL statement in Hibernate
-     * @param constraint
-     * @return
-     */
-    protected def highDimensionConstraintClosure(ConstraintByOmicsValue constraint) {
-        if (getHighDimensionFilterType() == HighDimensionFilterType.SINGLE_NUMERIC ||
-                getHighDimensionFilterType() == HighDimensionFilterType.ACGH) {
-            // default aggregator for numeric is average
-            // this should be parameterized in the future
-            if (constraint.operator != null && constraint.constraint != null) {
-                switch (constraint.operator) {
-                    case ConstraintByOmicsValue.Operator.BETWEEN:
-                        def limits = constraint.constraint.split(':')*.toDouble()
-                        return {value -> limits[0] <= value && value <= limits[1]}
-                        break;
-                    case ConstraintByOmicsValue.Operator.EQUAL_TO:
-                        def limit = constraint.constraint.toDouble()
-                        return {value -> limit == value}
-                        break;
-                    case ConstraintByOmicsValue.Operator.GREATER_OR_EQUAL_TO:
-                        def limit = constraint.constraint.toDouble()
-                        return {value -> limit <= value}
-                        break;
-                    case ConstraintByOmicsValue.Operator.GREATER_THAN:
-                        def limit = constraint.constraint.toDouble()
-                        return {value -> limit < value}
-                        break;
-                    case ConstraintByOmicsValue.Operator.LOWER_OR_EQUAL_TO:
-                        def limit = constraint.constraint.toDouble()
-                        return {value -> limit >= value}
-                        break;
-                    case ConstraintByOmicsValue.Operator.LOWER_THAN:
-                        def limit = constraint.constraint.toDouble()
-                        return {value -> limit > value}
-                        break;
-                }
-            }
-            else
-                return {row -> true}
-        }
-        else
-            return {row -> true}
-    }
+	/**
+	 * Creates a closure that takes a List and returns a single value, to be used as an aggregator for the given
+	 * ConstraintByOmicsValue. In many cases there will be multiple values per patient (e.g. multiple probes for
+	 * a given gene name), and the values need to be aggregated. Currently this method always returns a closure
+	 * that calculates the average.
+	 * @param constraint The omics value constraint
+	 * @return The aggregator closure
+	 */
+	protected Closure highDimensionConstraintValuesAggregator(ConstraintByOmicsValue constraint) {
+		{ values -> values.sum() / values.size() }
+	}
 
+	/**
+	 * Creates a closure that takes a value and returns a boolean. It will return true if the value meets the given
+	 * constraint defined in the ConstraintByOmicsValue, and false otherwise. Ideally we would want to do this at
+	 * the database, however we can not create a 'HAVING' SQL statement in Hibernate
+	 */
+	protected Closure highDimensionConstraintClosure(ConstraintByOmicsValue constraint) {
+		if (getHighDimensionFilterType() == HighDimensionFilterType.SINGLE_NUMERIC ||
+				getHighDimensionFilterType() == HighDimensionFilterType.ACGH) {
+			// default aggregator for numeric is average
+			// this should be parameterized in the future
+			if (constraint.operator != null && constraint.constraint != null) {
+				switch (constraint.operator) {
+					case ConstraintByOmicsValue.Operator.BETWEEN:
+						List<Double> limits = constraint.constraint.split(':')*.toDouble()
+						return { value -> limits[0] <= value && value <= limits[1] }
+					case ConstraintByOmicsValue.Operator.EQUAL_TO:
+						double limit = constraint.constraint.toDouble()
+						return { value -> limit == value }
+					case ConstraintByOmicsValue.Operator.GREATER_OR_EQUAL_TO:
+						double limit = constraint.constraint.toDouble()
+						return { value -> limit <= value }
+					case ConstraintByOmicsValue.Operator.GREATER_THAN:
+						double limit = constraint.constraint.toDouble()
+						return { value -> limit < value }
+					case ConstraintByOmicsValue.Operator.LOWER_OR_EQUAL_TO:
+						double limit = constraint.constraint.toDouble()
+						return { value -> limit >= value }
+					case ConstraintByOmicsValue.Operator.LOWER_THAN:
+						double limit = constraint.constraint.toDouble()
+						return { value -> limit > value }
+				}
+			}
+		}
 
-    @Override
-    public String toString() {
-        return "HighDimensionDataTypeResourceImpl{dataTypeName=$dataTypeName, " +
-                "identity=${System.identityHashCode(this)}"
-    }
+		{ row -> true }
+	}
 
-    boolean equals(o) {
-        if (this.is(o)) return true
-        if (getClass() != o.class) return false
+	String toString() {
+		"HighDimensionDataTypeResourceImpl{dataTypeName=$dataTypeName, " +
+				"identity=${System.identityHashCode(this)}"
+	}
 
-        HighDimensionDataTypeResourceImpl that = (HighDimensionDataTypeResourceImpl) o
+	boolean equals(o) {
+		if (is(o)) {
+			return true
+		}
+		if (getClass() != o.class) {
+			return false
+		}
 
-        if (dataTypeName != that.dataTypeName) return false
+		dataTypeName == ((HighDimensionDataTypeResourceImpl) o).dataTypeName
+	}
 
-        return true
-    }
-
-    int hashCode() {
-        return dataTypeName.hashCode()
-    }
+	int hashCode() {
+		dataTypeName.hashCode()
+	}
 }
