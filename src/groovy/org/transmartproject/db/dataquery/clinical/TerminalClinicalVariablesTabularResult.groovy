@@ -21,7 +21,6 @@ package org.transmartproject.db.dataquery.clinical
 
 import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
-import com.google.common.collect.Maps
 import groovy.transform.CompileStatic
 import org.hibernate.ScrollableResults
 import org.transmartproject.core.exceptions.InvalidArgumentsException
@@ -32,137 +31,128 @@ import org.transmartproject.db.dataquery.clinical.variables.TerminalConceptVaria
 
 @CompileStatic
 class TerminalClinicalVariablesTabularResult extends
-        CollectingTabularResult<TerminalClinicalVariable, PatientIdAnnotatedDataRow> {
+		CollectingTabularResult<TerminalClinicalVariable, PatientIdAnnotatedDataRow> {
 
-    public static final String TEXT_VALUE_TYPE = 'T'
+	public static final String TEXT_VALUE_TYPE = 'T'
 
-    public static final int PATIENT_NUM_COLUMN_INDEX  = 0
-    public static final int CODE_COLUMN_INDEX         = 1
-    public static final int VALUE_TYPE_COLUMN_INDEX   = 2
-    public static final int TEXT_VALUE_COLUMN_INDEX   = 3
-    public static final int NUMBER_VALUE_COLUMN_INDEX = 4
+	public static final int PATIENT_NUM_COLUMN_INDEX = 0
+	public static final int CODE_COLUMN_INDEX = 1
+	public static final int VALUE_TYPE_COLUMN_INDEX = 2
+	public static final int TEXT_VALUE_COLUMN_INDEX = 3
+	public static final int NUMBER_VALUE_COLUMN_INDEX = 4
 
-    /* XXX: this class hierarchy needs some refactoring, we're depending on
-     * implementation details of CollectingTabularResults and skipping quite
-     * some logic from it (see below the assignment for allowMissingColumn and
-     * the overriding of finalizeCollectedEntries()).
-     * Adding a new superclass for CollectingTabularResults and extending that
-     * instead would be a simple (but perhaps not very elegant) solution.
-     */
+	/* XXX: this class hierarchy needs some refactoring, we're depending on
+	 * implementation details of CollectingTabularResults and skipping quite
+	 * some logic from it (see below the assignment for allowMissingColumn and
+	 * the overriding of finalizeCollectedEntries()).
+	 * Adding a new superclass for CollectingTabularResults and extending that
+	 * instead would be a simple (but perhaps not very elegant) solution.
+	 */
 
-    BiMap<TerminalClinicalVariable, Integer> localIndexMap = HashBiMap.create()
+	BiMap<TerminalClinicalVariable, Integer> localIndexMap = HashBiMap.create()
 
-    /* variant of above map with variables replaced with their concept code */
-    private Map<String, Integer> codeToIndex = Maps.newHashMap()
+	// variant of above map with variables replaced with their concept code
+	private Map<String, Integer> codeToIndex = [:]
 
-    final String variableGroup
+	final String variableGroup
 
-    TerminalClinicalVariablesTabularResult(ScrollableResults results,
-                                          List<TerminalClinicalVariable> indicesList) {
-        this.results = results
+	TerminalClinicalVariablesTabularResult(ScrollableResults results,
+	                                       List<TerminalClinicalVariable> indicesList) {
+		this.results = results
+		this.indicesList = indicesList
 
-        this.indicesList = indicesList
+		for (TerminalClinicalVariable index in indicesList) {
+			localIndexMap[index] = indicesList.indexOf(index)
+		}
 
-        this.indicesList.each { TerminalClinicalVariable it ->
-            localIndexMap[it] = indicesList.indexOf it
-        }
+		localIndexMap.each { TerminalClinicalVariable var, Integer index ->
+			codeToIndex[var.code] = index
+		}
 
-        localIndexMap.each { TerminalClinicalVariable var, Integer index ->
-            codeToIndex[var.code] = index
-        }
+		if (!indicesList) {
+			throw new InvalidArgumentsException("Indices list is empty")
+		}
 
-        if (indicesList.empty) {
-            throw new InvalidArgumentsException("Indices list is empty")
-        }
+		Collection<String> groups = indicesList*.group.unique()
+		if (groups.size() != 1) {
+			throw new InvalidArgumentsException("Expected all the clinical " +
+					"variables in this sub-result to have the same type, " +
+					"found these: $groups")
+		}
+		variableGroup = groups[0]
 
-        def groups = indicesList*.group.unique()
-        if (groups.size() != 1) {
-            throw new InvalidArgumentsException("Expected all the clinical " +
-                    "variables in this sub-result to have the same type, " +
-                    "found these: $groups")
-        }
-        this.variableGroup = groups[0]
+		columnsDimensionLabel = 'Clinical Variables'
+		rowsDimensionLabel = 'Patients'
+		// actually yes, but this skips the complex logic in  addToCollectedEntries() and just adds the row to the list
+		allowMissingColumns = false
 
-        /* ** */
-        columnsDimensionLabel = 'Clinical Variables'
-        rowsDimensionLabel    = 'Patients'
-        // actually yes, but this skips the complex logic in
-        // addToCollectedEntries() and just adds the row to the list
-        allowMissingColumns   = false
+		columnIdFromRow = { Object[] row -> row[CODE_COLUMN_INDEX] }
+		inSameGroup = { Object[] row1, Object[] row2 ->
+			row1[PATIENT_NUM_COLUMN_INDEX] == row2[PATIENT_NUM_COLUMN_INDEX]
+		}
 
-        columnIdFromRow = { Object[] row ->
-            row[CODE_COLUMN_INDEX]
-        }
-        inSameGroup = { Object[] row1,
-                        Object[] row2 ->
-            row1[PATIENT_NUM_COLUMN_INDEX] == row2[PATIENT_NUM_COLUMN_INDEX]
-        }
+		finalizeGroup = this.&finalizePatientGroup
 
-        finalizeGroup = this.&finalizePatientGroup
-
-        /* session is managed outside, in ClinicalDataTabularResult */
-        closeSession = false
-    }
+		// session is managed outside, in ClinicalDataTabularResult
+		closeSession = false
+	}
 
 
-    final String columnEntityName = 'concept'
+	final String columnEntityName = 'concept'
 
-    @Override
-    protected Object getIndexObjectId(TerminalConceptVariable object) {
-        object.conceptCode
-    }
+	protected getIndexObjectId(TerminalConceptVariable object) {
+		object.conceptCode
+	}
 
-    protected void finalizeCollectedEntries(ArrayList collectedEntries) {
-        /* nothing to do here. All the logic in finalizePatientGroup */
-    }
+	protected void finalizeCollectedEntries(List collectedEntries) {
+		// nothing to do here. All the logic in finalizePatientGroup
+	}
 
-    private PatientIdAnnotatedDataRow finalizePatientGroup(List<Object[]> list) {
-        Map<Integer, TerminalClinicalVariable> indexToColumn = localIndexMap.inverse()
+	private PatientIdAnnotatedDataRow finalizePatientGroup(List<Object[]> list) {
+		Map<Integer, TerminalClinicalVariable> indexToColumn = localIndexMap.inverse()
 
-        Object[] transformedData = new Object[localIndexMap.size()]
+		Object[] transformedData = new Object[localIndexMap.size()]
 
-        /* don't take Object[] otherwise would be vararg func and
-         * further unwrapping needed */
-        list.each { Object rawRowUntyped ->
-            /* array with 5 elements */
-            if (!rawRowUntyped) {
-                return
-            }
-            Object[] rawRow = (Object[])rawRowUntyped
+		for (Object[] rawRow in list) {
+			// array with 5 elements
+			if (!rawRow) {
+				continue
+			}
 
-            /* find out the position of this concept in the final result */
-            Integer index = codeToIndex[rawRow[CODE_COLUMN_INDEX] as String]
-            if (index == null) {
-                throw new IllegalStateException("Unexpected concept code " +
-                        "'${rawRow[CODE_COLUMN_INDEX]}' at this point; " +
-                        "expected one of ${codeToIndex.keySet()}")
-            }
+			// find out the position of this concept in the final result
+			Integer index = codeToIndex[rawRow[CODE_COLUMN_INDEX] as String]
+			if (index == null) {
+				throw new IllegalStateException("Unexpected concept code " +
+						"'${rawRow[CODE_COLUMN_INDEX]}' at this point; " +
+						"expected one of ${codeToIndex.keySet()}")
+			}
 
-            /* and the corresponding variable */
-            TerminalClinicalVariable var = indexToColumn[index]
+			// and the corresponding variable
+			TerminalClinicalVariable var = indexToColumn[index]
 
-            if (transformedData[index] != null) {
-                throw new UnexpectedResultException("Got more than one fact for " +
-                        "patient ${rawRow[PATIENT_NUM_COLUMN_INDEX]} and " +
-                        "code $var.code. This is currently unsupported")
-            }
+			if (transformedData[index] != null) {
+				throw new UnexpectedResultException("Got more than one fact for " +
+						"patient ${rawRow[PATIENT_NUM_COLUMN_INDEX]} and " +
+						"code $var.code. This is currently unsupported")
+			}
 
-            transformedData[index] = getVariableValue(rawRow)
-        }
+			transformedData[index] = getVariableValue(rawRow)
+		}
 
-        new PatientIdAnnotatedDataRow(
-                patientId:     (list.find { it != null})[PATIENT_NUM_COLUMN_INDEX] as Long,
-                data:          Arrays.asList(transformedData) as List,
-                columnToIndex: localIndexMap as Map)
-    }
+		new PatientIdAnnotatedDataRow(
+				patientId: (list.find { it != null })[PATIENT_NUM_COLUMN_INDEX] as Long,
+				data: Arrays.asList(transformedData) as List,
+				columnToIndex: localIndexMap as Map)
+	}
 
-    private Object getVariableValue(Object[] rawRow) {
-        String valueType = rawRow[VALUE_TYPE_COLUMN_INDEX]
+	private getVariableValue(Object[] rawRow) {
+		String valueType = rawRow[VALUE_TYPE_COLUMN_INDEX]
 
-        if (valueType == TEXT_VALUE_TYPE) {
-            rawRow[TEXT_VALUE_COLUMN_INDEX]
-        } else {
-            rawRow[NUMBER_VALUE_COLUMN_INDEX]
-        }
-    }
+		if (valueType == TEXT_VALUE_TYPE) {
+			rawRow[TEXT_VALUE_COLUMN_INDEX]
+		}
+		else {
+			rawRow[NUMBER_VALUE_COLUMN_INDEX]
+		}
+	}
 }

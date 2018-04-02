@@ -162,21 +162,16 @@ class PatientSetQueryBuilderService {
 			(GREATER_OR_EQUAL_TO): [['>=', ['E', 'GE', 'G']]]
 	]
 
-	private String doItem(MetadataSelectQuerySpecification term,
-	                      Item item,
-	                      User user) {
+	private String doItem(MetadataSelectQuerySpecification term, Item item, User user) {
 		/* constraint represented by the ontology term */
 		def clause = generateObservationFactConstraint(user, term)
-		def conceptcd_subclause = clause
 		/* additional (and optional) constraint by value */
 		def constraint = item.constraint
 		def omics_value_constraint = item.constraintByOmicsValue
 		if (constraint) {
 			if (constraint.valueType == ConstraintByValue.ValueType.NUMBER) {
 				def spec = NUMBER_QUERY_MAPPING[constraint.operator]
-				def constraintValue = doConstraintNumber(constraint.operator,
-						constraint.constraint)
-
+				def constraintValue = doConstraintNumber(constraint.operator, constraint.constraint)
 				def predicates = spec.collect {
 					"valtype_cd = 'N' AND nval_num ${it[0]} $constraintValue AND " +
 							"tval_char " + (it[1].size() == 1

@@ -131,12 +131,10 @@ class TableAccess extends AbstractQuerySpecifyingType implements OntologyTerm, S
 		cSynonymCd != 'Y'
 	}
 
-	@Override
 	List<OntologyTerm> getChildren(boolean showHidden = false, boolean showSynonyms = false) {
 		getDescendants(false, showHidden, showSynonyms)
 	}
 
-	@Override
 	List<OntologyTerm> getAllDescendants(boolean showHidden = false, boolean showSynonyms = false) {
 		getDescendants(true, showHidden, showSynonyms)
 	}

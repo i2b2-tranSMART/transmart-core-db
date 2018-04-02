@@ -24,21 +24,19 @@ import org.transmartproject.core.dataquery.assay.Assay
 
 abstract class AbstractEntityQuery<T> implements Iterable<T> {
 
-    abstract DetachedCriteria<T> forEntities()
+	abstract DetachedCriteria<T> forEntities()
 
-    DetachedCriteria<Long> forIds() {
-        forEntities().where {
-            projections { id() }
-        }
-    }
+	DetachedCriteria<Long> forIds() {
+		forEntities().where {
+			projections { id() }
+		}
+	}
 
-    List<T> list() {
-        forEntities().list()
-    }
+	List<T> list() {
+		forEntities().list()
+	}
 
-    @Override
-    Iterator<Assay> iterator() {
-        list().iterator()
-    }
-
+	Iterator<Assay> iterator() {
+		list().iterator()
+	}
 }

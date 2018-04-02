@@ -27,17 +27,17 @@ import org.transmartproject.db.dataquery.CollectingTabularResult
 
 @CompileStatic
 @ToString
-class DefaultHighDimensionTabularResult<R extends DataRow>
-        extends CollectingTabularResult<AssayColumn, R> {
+class DefaultHighDimensionTabularResult<R extends DataRow> extends CollectingTabularResult<AssayColumn, R> {
 
-    final String columnEntityName = 'assay'
+	final String columnEntityName = 'assay'
 
-    /* aliases */
-    public void setAllowMissingAssays(Boolean value) {
-        allowMissingColumns = value
-    }
+	// aliases
 
-    public void setAssayIdFromRow(Closure<Object> value) {
-        columnIdFromRow = value
-    }
+	void setAllowMissingAssays(boolean value) {
+		allowMissingColumns = value
+	}
+
+	void setAssayIdFromRow(Closure value) {
+		columnIdFromRow = value
+	}
 }

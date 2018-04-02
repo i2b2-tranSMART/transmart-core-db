@@ -21,14 +21,14 @@ package org.transmartproject.db.dataquery.clinical.variables
 
 import org.transmartproject.core.dataquery.clinical.ClinicalVariableColumn
 
-public interface TerminalClinicalVariable extends ClinicalVariableColumn {
+interface TerminalClinicalVariable extends ClinicalVariableColumn {
 
-    String getGroup()
+	String getGroup()
 
-    /**
-     * The value of the dimension code. This is the value used to join with
-     * dimension table (e.g. concept_cd for concept_dimension or modifier_cd
-     * for modifier_dimension)
-     */
-    String getCode()
+	/**
+	 * The value of the dimension code. This is the value used to join with
+	 * dimension table (e.g. concept_cd for concept_dimension or modifier_cd
+	 * for modifier_dimension)
+	 */
+	String getCode()
 }

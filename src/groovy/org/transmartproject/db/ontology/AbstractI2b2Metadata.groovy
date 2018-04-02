@@ -151,12 +151,10 @@ abstract class AbstractI2b2Metadata extends AbstractQuerySpecifyingType implemen
 		null
 	}
 
-	@Override
 	List<OntologyTerm> getChildren(boolean showHidden = false, boolean showSynonyms = false) {
 		getDescendants(false, showHidden, showSynonyms)
 	}
 
-	//@Override
 	List<OntologyTerm> getAllDescendants(boolean showHidden = false, boolean showSynonyms = false) {
 		getDescendants(true, showHidden, showSynonyms)
 	}
