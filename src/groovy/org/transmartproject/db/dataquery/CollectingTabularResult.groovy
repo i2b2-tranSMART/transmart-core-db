@@ -20,8 +20,6 @@
 package org.transmartproject.db.dataquery
 
 import com.google.common.collect.AbstractIterator
-import groovy.transform.CompileDynamic
-import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import org.hibernate.ScrollableResults
 import org.transmartproject.core.dataquery.DataRow
@@ -80,7 +78,6 @@ import org.transmartproject.core.exceptions.UnexpectedResultException
  * @param < C >  the type for the columns
  * @param < R >  the type for the rows
  */
-@CompileStatic
 @Slf4j('logger')
 abstract class CollectingTabularResult<C, R extends DataRow> implements TabularResult<C, R>, Iterable<R> {
 
@@ -219,7 +216,6 @@ abstract class CollectingTabularResult<C, R extends DataRow> implements TabularR
 		}
 	}
 
-	@CompileDynamic
 	void close() throws IOException {
 		closeCalled = true
 		results?.close()

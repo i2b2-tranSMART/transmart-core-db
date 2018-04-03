@@ -44,7 +44,7 @@ class RepeatedEntriesCollectingTabularResult<T extends AbstractDataRow> {
 		getRows()
 	}
 
-	// @CompileStatic
+	@CompileStatic
 	class RepeatedEntriesCollectingIterator extends AbstractIterator<T> {
 
 		PeekingIterator<T> sourceIterator

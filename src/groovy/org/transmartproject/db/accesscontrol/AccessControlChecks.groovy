@@ -128,7 +128,7 @@ class AccessControlChecks {
 
 		List<I2b2Secure> allI2b2s = findAllByFullNameInList(studySet)
 
-		allI2b2s.find { !it.secureObjectToken }?.collect {
+		allI2b2s.find { I2b2Secure i2b2Secure -> !i2b2Secure.secureObjectToken }?.collect {
 			throw new UnexpectedResultException("Found I2b2Secure object with empty secureObjectToken")
 		}
 
@@ -137,13 +137,13 @@ class AccessControlChecks {
 			 * have a corresponding I2b2Secure object. That is
 			 * the reason for "?.(...) ?: PUBLIC_SOT" part below
 			 */
-			[study, allI2b2s.find { i2b2secure ->
+			[study, allI2b2s.find { I2b2Secure i2b2secure ->
 				i2b2secure.fullName == study.ontologyTerm.fullName
 			}?.secureObjectToken ?: PUBLIC_SOT]
 		}
 
-		List<String> nonPublicSOTs = allI2b2s.findAll {
-			it.secureObjectToken && it.secureObjectToken != PUBLIC_SOT
+		List<String> nonPublicSOTs = allI2b2s.findAll { I2b2Secure i2b2Secure ->
+			i2b2Secure.secureObjectToken && i2b2Secure.secureObjectToken != PUBLIC_SOT
 		}*.secureObjectToken
 
 		List<String> userGrantedSOTs
@@ -162,7 +162,7 @@ class AccessControlChecks {
 
 		studySet.findAll { Study study ->
 			studySOTMap[study] == PUBLIC_SOT || studySOTMap[study] in userGrantedSOTs
-		}
+		} as Set<Study>
 	}
 
 	boolean canPerform(User user, ProtectedOperation operation, QueryDefinition definition) {
@@ -174,7 +174,7 @@ class AccessControlChecks {
 
 		// check there is at least one non-inverted panel for which the user
 		// has permission in all the terms
-		boolean ok = definition.panels.findAll { !it.invert }.any { Panel panel ->
+		boolean ok = definition.panels.findAll { Panel panel -> !panel.invert }.any { Panel panel ->
 			Set<Study> foundStudies = panel.items.findAll { Item item ->
 				/* always permit across trial nodes.
 				 * Across trial terms have no study, so they have to be
