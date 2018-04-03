@@ -51,10 +51,11 @@ class ProteinModule extends AbstractHighDimensionDataTypeModule {
 	final Map<String, Class> rowProperties = typesMap(ProteinDataRow,
 			['uniprotName', 'peptide'])
 
+	@Autowired CorrelationTypesRegistry correlationTypesRegistry
 	@Autowired DataRetrievalParameterFactory standardAssayConstraintFactory
 	@Autowired DataRetrievalParameterFactory standardDataConstraintFactory
-	@Autowired CorrelationTypesRegistry correlationTypesRegistry
 
+	@Lazy
 	private DataRetrievalParameterFactory searchKeywordDataConstraintFactory =
 			new SearchKeywordDataConstraintFactory(correlationTypesRegistry,
 					'PROTEIN', 'a', 'uniprotId')
@@ -105,7 +106,7 @@ class ProteinModule extends AbstractHighDimensionDataTypeModule {
 
 			order 'a.id', 'asc'
 			order 'assay.id', 'asc'
-			instance.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP)
+			instance.resultTransformer = Transformers.ALIAS_TO_ENTITY_MAP
 		}
 		criteriaBuilder
 	}

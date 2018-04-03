@@ -19,7 +19,8 @@
 
 package org.transmartproject.db.accesscontrol
 
-import grails.compiler.GrailsCompileStatic
+import groovy.transform.CompileDynamic
+import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
@@ -47,7 +48,7 @@ import static org.transmartproject.db.ontology.AbstractAcrossTrialsOntologyTerm.
  * this should be refactored into a different solution (e.g. each check
  * implemented in a different Spring bean).
  */
-@GrailsCompileStatic
+@CompileStatic
 @Component
 @Slf4j('logger')
 class AccessControlChecks {
@@ -125,7 +126,7 @@ class AccessControlChecks {
 			return studySet
 		}
 
-		List<I2b2Secure> allI2b2s = I2b2Secure.findAllByFullNameInList(studySet*.ontologyTerm*.fullName as List)
+		List<I2b2Secure> allI2b2s = findAllByFullNameInList(studySet)
 
 		allI2b2s.find { !it.secureObjectToken }?.collect {
 			throw new UnexpectedResultException("Found I2b2Secure object with empty secureObjectToken")
@@ -244,5 +245,10 @@ class AccessControlChecks {
 		}
 
 		ok
+	}
+
+	@CompileDynamic
+	private List<I2b2Secure> findAllByFullNameInList(Set<Study> studySet) {
+		I2b2Secure.findAllByFullNameInList(studySet*.ontologyTerm*.fullName as List)
 	}
 }

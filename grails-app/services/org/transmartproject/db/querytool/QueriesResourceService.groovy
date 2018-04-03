@@ -19,8 +19,9 @@
 
 package org.transmartproject.db.querytool
 
-import grails.compiler.GrailsCompileStatic
 import groovy.sql.Sql
+import groovy.transform.CompileDynamic
+import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import org.hibernate.SessionFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -37,7 +38,7 @@ import org.transmartproject.db.user.UsersResourceService
 
 import javax.sql.DataSource
 
-@GrailsCompileStatic
+@CompileStatic
 @Slf4j('logger')
 class QueriesResourceService implements QueriesResource {
 
@@ -76,14 +77,14 @@ class QueriesResourceService implements QueriesResource {
 				startDate: new Date(),
 				statusTypeId: QueryStatus.PROCESSING.id,
 				queryMaster: queryMaster)
-		queryMaster.addToQueryInstances queryInstance
+		addToQueryInstances queryMaster, queryInstance
 
 		// 3. Populate qt_query_result_instance
 		QtQueryResultInstance resultInstance = new QtQueryResultInstance(
 				statusTypeId: QueryStatus.PROCESSING.id,
 				startDate: new Date(),
 				queryInstance: queryInstance)
-		queryInstance.addToQueryResults resultInstance
+		addToQueryResults queryInstance, resultInstance
 
 		// 4. Save the three objects
 		if (!queryMaster.validate()) {
@@ -200,5 +201,15 @@ class QueriesResourceService implements QueriesResource {
 					'but tranSMART functionality will be degraded, and this behavior is deprecated', username
 			return null
 		}
+	}
+
+	@CompileDynamic
+	private void addToQueryInstances(QtQueryMaster queryMaster, QtQueryInstance queryInstance) {
+		queryMaster.addToQueryInstances queryInstance
+	}
+
+	@CompileDynamic
+	private void addToQueryResults(QtQueryInstance queryInstance, QtQueryResultInstance resultInstance) {
+		queryInstance.addToQueryResults resultInstance
 	}
 }

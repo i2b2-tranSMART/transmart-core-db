@@ -45,7 +45,7 @@ import javax.annotation.PostConstruct
 
 import static org.transmartproject.db.util.GormWorkarounds.createCriteriaBuilder
 
-/*
+/**
  * Mirna QPCR and Mirna SEQ are different data types (according to the user), but they have basically the same
  * implementation. We solve that by having a shared implementation in AbstractMirnaSharedModule.
  */
@@ -56,9 +56,9 @@ abstract class AbstractMirnaSharedModule extends AbstractHighDimensionDataTypeMo
 	final Map<String, Class> rowProperties = typesMap(MirnaProbeRow,
 			['probeId', 'mirnaId'])
 
+	@Autowired CorrelationTypesRegistry correlationTypesRegistry
 	@Autowired StandardAssayConstraintFactory standardAssayConstraintFactory
 	@Autowired StandardDataConstraintFactory standardDataConstraintFactory
-	@Autowired CorrelationTypesRegistry correlationTypesRegistry
 
 	@PostConstruct
 	void init() {
@@ -72,6 +72,7 @@ abstract class AbstractMirnaSharedModule extends AbstractHighDimensionDataTypeMo
 		[standardAssayConstraintFactory]
 	}
 
+	@Lazy
 	private DataRetrievalParameterFactory searchKeywordDataConstraintFactory =
 			new SearchKeywordDataConstraintFactory(correlationTypesRegistry,
 					'MIRNA', 'p', 'mirnaId')
@@ -150,7 +151,7 @@ abstract class AbstractMirnaSharedModule extends AbstractHighDimensionDataTypeMo
 			}
 			ilike search_property, search_term + '%'
 			projections { distinct(search_property) }
-			order  search_property, 'ASC'
+			order search_property, 'ASC'
 		}
 	}
 
