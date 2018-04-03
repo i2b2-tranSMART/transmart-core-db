@@ -18,6 +18,7 @@
  */
 
 package org.transmartproject.db.dataquery.highdim.mrna
+
 import grails.orm.HibernateCriteriaBuilder
 import org.hibernate.ScrollableResults
 import org.hibernate.engine.SessionImplementor
@@ -38,165 +39,145 @@ import org.transmartproject.db.dataquery.highdim.parameterproducers.DataRetrieva
 import org.transmartproject.db.dataquery.highdim.parameterproducers.SimpleAnnotationConstraintFactory
 import org.transmartproject.db.dataquery.highdim.parameterproducers.SimpleRealProjectionsFactory
 
-import static org.hibernate.sql.JoinFragment.INNER_JOIN
 import static org.transmartproject.db.util.GormWorkarounds.createCriteriaBuilder
 
 class MrnaModule extends AbstractHighDimensionDataTypeModule {
 
-    final String name = 'mrna'
+	final String name = 'mrna'
+	final String description = "Messenger RNA data (Microarray)"
+	final List<String> platformMarkerTypes = ['Gene Expression']
+	final Map<String, Class> dataProperties = typesMap(DeSubjectMicroarrayDataCoreDb,
+			['trialName', 'rawIntensity', 'logIntensity', 'zscore'])
+	final Map<String, Class> rowProperties = typesMap(ProbeRow,
+			['probe', 'geneId', 'geneSymbol'])
 
-    final String description = "Messenger RNA data (Microarray)"
+	@Autowired DataRetrievalParameterFactory standardAssayConstraintFactory
+	@Autowired DataRetrievalParameterFactory standardDataConstraintFactory
+	@Autowired CorrelationTypesRegistry correlationTypesRegistry
 
-    final List<String> platformMarkerTypes = ['Gene Expression']
+	HibernateCriteriaBuilder prepareDataQuery(Projection projection, SessionImplementor session) {
+		HibernateCriteriaBuilder criteriaBuilder = createCriteriaBuilder(
+				DeSubjectMicroarrayDataCoreDb, 'mrnadata', session)
 
-    final Map<String, Class> dataProperties = typesMap(DeSubjectMicroarrayDataCoreDb,
-            ['trialName', 'rawIntensity', 'logIntensity', 'zscore'])
+		criteriaBuilder.with {
+			createAlias 'jProbe', 'p', INNER_JOIN
 
-    final Map<String, Class> rowProperties = typesMap(ProbeRow,
-            ['probe', 'geneId', 'geneSymbol'])
+			projections {
+				property 'assay.id', 'assayId'
 
-    @Autowired
-    DataRetrievalParameterFactory standardAssayConstraintFactory
+				property 'p.id', 'probeId'
+				property 'p.probeId', 'probeName'
+				property 'p.geneSymbol', 'geneSymbol'
+				property 'p.geneId', 'geneId'
+				property 'p.organism', 'organism'
 
-    @Autowired
-    DataRetrievalParameterFactory standardDataConstraintFactory
+				property 'patient.id', 'patientId'
+			}
 
-    @Autowired
-    CorrelationTypesRegistry correlationTypesRegistry
+			order 'p.id', 'asc'
+			order 'p.geneSymbol', 'asc' // see below
+			order 'assay.id', 'asc' // important! See assumption below
 
-    @Override
-    HibernateCriteriaBuilder prepareDataQuery(Projection projection,
-                                              SessionImplementor session) {
-        HibernateCriteriaBuilder criteriaBuilder =
-            createCriteriaBuilder(DeSubjectMicroarrayDataCoreDb, 'mrnadata', session)
+			// because we're using this transformer, every column has to have an alias
+			instance.resultTransformer = Transformers.ALIAS_TO_ENTITY_MAP
+		}
 
-        criteriaBuilder.with {
-            createAlias 'jProbe', 'p', INNER_JOIN
+		criteriaBuilder
+	}
 
-            projections {
-                property 'assay.id',     'assayId'
+	TabularResult transformResults(ScrollableResults results, List<AssayColumn> assays, Projection projection) {
+		/* assumption here is the assays in the passed in list are in the same
+		 * order as the assays in the result set */
+		Map assayIndexMap = createAssayIndexMap(assays)
 
-                property 'p.id',         'probeId'
-                property 'p.probeId',    'probeName'
-                property 'p.geneSymbol', 'geneSymbol'
-                property 'p.geneId',     'geneId'
-                property 'p.organism',   'organism'
+		DefaultHighDimensionTabularResult preliminaryResult = new DefaultHighDimensionTabularResult(
+				rowsDimensionLabel: 'Probes',
+				columnsDimensionLabel: 'Sample codes',
+				indicesList: assays,
+				results: results,
+				allowMissingAssays: true,
+				assayIdFromRow: { it[0].assayId },
+				inSameGroup: { a, b -> a.probeId == b.probeId && a.geneSymbol == b.geneSymbol },
+				finalizeGroup: { List list -> /* list of arrays with one element: a map */
+					/* we may have nulls if allowMissingAssays is true,
+					 * but we're guaranteed to have at least one non-null */
+					def firstNonNullCell = list.find()
+					new ProbeRow(
+							probe: firstNonNullCell[0].probeName,
+							geneSymbol: firstNonNullCell[0].geneSymbol,
+							geneId: firstNonNullCell[0].geneId,
+							assayIndexMap: assayIndexMap,
+							data: list.collect { projection.doWithResult it?.getAt(0) }
+					)
+				}
+		)
 
-                property 'patient.id',   'patientId'
-            }
+		/* In some implementations, probeset_id is actually not a primary key on
+		 * the annotations table and several rows will be returned for the same
+		 * probeset_id, just with different genes.
+		 * Hence the order by clause and the definition of inSameGroup above */
+		new RepeatedEntriesCollectingTabularResult(
+				tabularResult: preliminaryResult,
+				collectBy: { it.probe },
+				resultItem: { collectedList ->
+					if (collectedList) {
+						new ProbeRow(
+								probe: collectedList[0].probe,
+								geneSymbol: collectedList*.geneSymbol.join('/'),
+								geneId: collectedList*.geneId.join('/'),
+								assayIndexMap: collectedList[0].assayIndexMap,
+								data: collectedList[0].data
+						)
+					}
+				}
+		)
+	}
 
-            order 'p.id',         'asc'
-            order 'p.geneSymbol', 'asc' // see below
-            order 'assay.id',     'asc' // important! See assumption below
+	protected List<DataRetrievalParameterFactory> createAssayConstraintFactories() {
+		[standardAssayConstraintFactory]
+	}
 
-            // because we're using this transformer, every column has to have an alias
-            instance.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP)
-        }
+	protected List<DataRetrievalParameterFactory> createDataConstraintFactories() {
+		[standardDataConstraintFactory,
+		 new SimpleAnnotationConstraintFactory(field: 'probe', annotationClass: DeMrnaAnnotationCoreDb.class),
+		 new SearchKeywordDataConstraintFactory(correlationTypesRegistry,
+				 'GENE', 'p', 'geneId')]
+	}
 
-        criteriaBuilder
-    }
+	protected List<DataRetrievalParameterFactory> createProjectionFactories() {
+		[new SimpleRealProjectionsFactory(
+				(Projection.LOG_INTENSITY_PROJECTION): 'logIntensity',
+				(Projection.DEFAULT_REAL_PROJECTION): 'rawIntensity',
+				(Projection.ZSCORE_PROJECTION): 'zscore'),
+		 new AllDataProjectionFactory(dataProperties, rowProperties)]
+	}
 
-    @Override
-    TabularResult transformResults(ScrollableResults results,
-                                     List<AssayColumn> assays,
-                                     Projection projection) {
-        /* assumption here is the assays in the passed in list are in the same
-         * order as the assays in the result set */
-        Map assayIndexMap = createAssayIndexMap assays
+	List<String> searchAnnotation(String conceptCode, String searchTerm, String searchProperty) {
+		if (!getSearchableAnnotationProperties().contains(searchProperty)) {
+			return []
+		}
 
-        def preliminaryResult = new DefaultHighDimensionTabularResult(
-                rowsDimensionLabel:    'Probes',
-                columnsDimensionLabel: 'Sample codes',
-                indicesList:           assays,
-                results:               results,
-                allowMissingAssays:    true,
-                assayIdFromRow:        { it[0].assayId },
-                inSameGroup:           { a, b -> a.probeId == b.probeId && a.geneSymbol == b.geneSymbol },
-                finalizeGroup:         { List list -> /* list of arrays with one element: a map */
-                    /* we may have nulls if allowMissingAssays is true,
-                     * but we're guaranteed to have at least one non-null */
-                    def firstNonNullCell = list.find()
-                    new ProbeRow(
-                            probe:         firstNonNullCell[0].probeName,
-                            geneSymbol:    firstNonNullCell[0].geneSymbol,
-                            geneId:        firstNonNullCell[0].geneId,
-                            assayIndexMap: assayIndexMap,
-                            data:          list.collect { projection.doWithResult it?.getAt(0) }
-                    )
-                }
-        )
+		DeMrnaAnnotationCoreDb.createCriteria().list {
+			eq 'gplId', DeSubjectSampleMapping.createCriteria().get {
+				eq 'conceptCode', conceptCode
+				projections { distinct 'platform.id' }
+			}
+			ilike searchProperty, searchTerm + '%'
+			projections { distinct(searchProperty) }
+			order searchProperty, 'ASC'
+			maxResults 100
+		}
+	}
 
-        /* In some implementations, probeset_id is actually not a primary key on
-         * the annotations table and several rows will be returned for the same
-         * probeset_id, just with different genes.
-         * Hence the order by clause and the definition of inSameGroup above */
-        new RepeatedEntriesCollectingTabularResult(
-                tabularResult: preliminaryResult,
-                collectBy: { it.probe },
-                resultItem: {collectedList ->
-                    if (collectedList) {
-                        new ProbeRow(
-                                probe:         collectedList[0].probe,
-                                geneSymbol:    collectedList*.geneSymbol.join('/'),
-                                geneId:        collectedList*.geneId.join('/'),
-                                assayIndexMap: collectedList[0].assayIndexMap,
-                                data:          collectedList[0].data
-                        )
-            }
-            }
-        )
-    }
+	List<String> getSearchableAnnotationProperties() {
+		['geneSymbol']
+	}
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createAssayConstraintFactories() {
-        [ standardAssayConstraintFactory ]
-    }
+	HighDimensionFilterType getHighDimensionFilterType() {
+		HighDimensionFilterType.SINGLE_NUMERIC
+	}
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createDataConstraintFactories() {
-        [ standardDataConstraintFactory,
-                new SimpleAnnotationConstraintFactory(field: 'probe', annotationClass: DeMrnaAnnotationCoreDb.class),
-                new SearchKeywordDataConstraintFactory(correlationTypesRegistry,
-                        'GENE', 'p', 'geneId') ]
-    }
-
-    @Override
-    protected List<DataRetrievalParameterFactory> createProjectionFactories() {
-        [ new SimpleRealProjectionsFactory(
-                (Projection.LOG_INTENSITY_PROJECTION): 'logIntensity',
-                (Projection.DEFAULT_REAL_PROJECTION): 'rawIntensity',
-                (Projection.ZSCORE_PROJECTION):       'zscore'),
-        new AllDataProjectionFactory(dataProperties, rowProperties)]
-    }
-
-    @Override
-    List<String> searchAnnotation(String concept_code, String search_term, String search_property) {
-        if (!getSearchableAnnotationProperties().contains(search_property))
-            return []
-        DeMrnaAnnotationCoreDb.createCriteria().list {
-            eq('gplId', DeSubjectSampleMapping.createCriteria().get {
-                eq('conceptCode', concept_code)
-                projections {distinct 'platform.id'}
-            })
-            ilike(search_property, search_term + '%')
-            projections { distinct(search_property) }
-            order(search_property, 'ASC')
-            maxResults(100)
-        }
-    }
-
-    @Override
-    List<String> getSearchableAnnotationProperties() {
-        ['geneSymbol']
-    }
-
-    @Override
-    HighDimensionFilterType getHighDimensionFilterType() {
-        HighDimensionFilterType.SINGLE_NUMERIC
-    }
-
-    @Override
-    List<String> getSearchableProjections() {
-        [Projection.LOG_INTENSITY_PROJECTION, Projection.DEFAULT_REAL_PROJECTION, Projection.ZSCORE_PROJECTION]
-    }
+	List<String> getSearchableProjections() {
+		[Projection.LOG_INTENSITY_PROJECTION, Projection.DEFAULT_REAL_PROJECTION, Projection.ZSCORE_PROJECTION]
+	}
 }

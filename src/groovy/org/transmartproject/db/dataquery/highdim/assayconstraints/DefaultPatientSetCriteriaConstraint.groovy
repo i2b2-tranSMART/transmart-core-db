@@ -27,19 +27,15 @@ import org.transmartproject.db.querytool.QtPatientSetCollection
 @Canonical
 class DefaultPatientSetCriteriaConstraint implements AssayCriteriaConstraint {
 
-    QueryResult queryResult
+	QueryResult queryResult
 
-    @Override
-    void addToCriteria(Criteria criteria) {
-        criteria.in('patient.id',
-            QtPatientSetCollection.where {
-                projections {
-                    property 'patient.id'
-                }
+	void addToCriteria(Criteria criteria) {
+		criteria.in 'patient.id', QtPatientSetCollection.where {
+			projections {
+				property 'patient.id'
+			}
 
-                eq 'resultInstance', this.queryResult
-            }
-        )
-    }
-
+			eq 'resultInstance', this.queryResult
+		}
+	}
 }

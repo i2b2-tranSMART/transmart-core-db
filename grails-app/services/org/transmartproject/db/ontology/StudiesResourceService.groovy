@@ -19,8 +19,7 @@
 
 package org.transmartproject.db.ontology
 
-import org.hibernate.Query
-import org.hibernate.SessionFactory
+import groovy.transform.CompileStatic
 import org.transmartproject.core.exceptions.NoSuchResourceException
 import org.transmartproject.core.exceptions.UnexpectedResultException
 import org.transmartproject.core.ontology.OntologyTerm
@@ -28,9 +27,10 @@ import org.transmartproject.core.ontology.StudiesResource
 import org.transmartproject.core.ontology.Study
 import org.transmartproject.db.i2b2data.I2b2TrialNodes
 
+@CompileStatic
 class StudiesResourceService implements StudiesResource {
 
-	SessionFactory sessionFactory
+	static transactional = false
 
 	Set<Study> getStudySet() {
 		// we actually only search the i2b2 table here
@@ -38,49 +38,46 @@ class StudiesResourceService implements StudiesResource {
 		// and that i2b2 is the only used ontology table,
 		// we have to drop the pretense that we use table_access and multiple
 		// ontology tables at this point.
-		Query query = sessionFactory.currentSession.createQuery '''
-                SELECT I, TN.trial
-                FROM I2b2 I, I2b2TrialNodes TN
-                WHERE (I.fullName = TN.fullName)'''
+		List<Object[]> rows = I2b2.executeQuery('''
+				SELECT I, TN.trial
+				FROM I2b2 I, I2b2TrialNodes TN
+				WHERE (I.fullName = TN.fullName)''') as List<Object[]>
 		// the query is awkward (cross join) due to the non-existence of an
 		// association. See comment on I2b2TrialNodes
 
-		query.list().collect { row ->
-			new StudyImpl(ontologyTerm: row[0], id: row[1])
-		} as Set
+		rows.collect { Object[] row ->
+			new StudyImpl(ontologyTerm: (OntologyTerm) row[0], id: (String) row[1])
+		} as Set<Study>
 	}
 
 	Study getStudyById(String id) throws NoSuchResourceException {
 		String normalizedStudyId = id.toUpperCase(Locale.ENGLISH)
-		Query query = sessionFactory.currentSession.createQuery '''
-                SELECT I
-                FROM I2b2 I WHERE fullName IN (
-                    SELECT fullName FROM I2b2TrialNodes WHERE trial = :trial
-                )'''
-		query.setParameter 'trial', normalizedStudyId
+		List<I2b2> result = I2b2.executeQuery('''
+				SELECT I
+				FROM I2b2 I
+				WHERE fullName IN (SELECT fullName FROM I2b2TrialNodes WHERE trial = :trial)''',
+				[trial: normalizedStudyId])
 
-		List result = query.list()
 		if (!result) {
 			throw new NoSuchResourceException("No study with id '$id' was found")
 		}
 		if (result.size() > 1) {
-			throw new UnexpectedResultException(
-					"Found more than one study term with id '$id'")
+			throw new UnexpectedResultException("Found more than one study term with id '$id'")
 		}
 		new StudyImpl(ontologyTerm: result.first(), id: normalizedStudyId)
 	}
 
 	Study getStudyByOntologyTerm(OntologyTerm term) throws NoSuchResourceException {
-		def trialNodes
+		I2b2TrialNodes trialNodes
 		if (OntologyTerm.VisualAttributes.STUDY in term.visualAttributes &&
-				term.hasProperty('studyId') && term.studyId) {
-			new StudyImpl(ontologyTerm: term, id: term.studyId)
+				term.hasProperty('studyId') && term['studyId']) {
+			return new StudyImpl(ontologyTerm: term, id: (String) term['studyId'])
 		}
-		else if ((trialNodes = I2b2TrialNodes.findByFullName(term.fullName))) {
-			new StudyImpl(ontologyTerm: term, id: trialNodes.trial)
+
+		if ((trialNodes = I2b2TrialNodes.findWhere(fullName: term.fullName))) {
+			return new StudyImpl(ontologyTerm: term, id: trialNodes.trial)
 		}
-		else {
-			throw new NoSuchResourceException("The ontology term $term is not the top node for a study")
-		}
+
+		throw new NoSuchResourceException("The ontology term $term is not the top node for a study")
 	}
 }

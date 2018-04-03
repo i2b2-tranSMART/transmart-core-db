@@ -27,20 +27,17 @@ import org.transmartproject.db.i2b2data.PatientDimension
 
 class PatientQuery extends AbstractEntityQuery<Patient> {
 
-    private final DetachedCriteria<PatientDimension> criteria
+	private final DetachedCriteria<PatientDimension> criteria
 
-    PatientQuery(List<PatientConstraint> constraints) {
-        this.criteria =
-            PatientDimension.where {
-                constraints.each { PatientConstraint assayConstraint ->
-                    assayConstraint.addToCriteria(it)
-                }
-            }
-    }
+	PatientQuery(List<PatientConstraint> constraints) {
+		criteria = PatientDimension.where {
+			for (PatientConstraint assayConstraint in constraints) {
+				assayConstraint.addToCriteria it
+			}
+		}
+	}
 
-    @Override
-    DetachedCriteria<Patient> forEntities() {
-        criteria
-    }
-
+	DetachedCriteria<Patient> forEntities() {
+		criteria
+	}
 }

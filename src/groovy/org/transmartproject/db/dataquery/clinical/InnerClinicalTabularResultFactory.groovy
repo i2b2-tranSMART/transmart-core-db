@@ -26,45 +26,43 @@ import org.transmartproject.db.dataquery.clinical.variables.TerminalClinicalVari
 import org.transmartproject.db.dataquery.clinical.variables.TerminalConceptVariable
 import org.transmartproject.db.i2b2data.PatientDimension
 
-@Component /* not scanned; explicit bean definition */
+// not scanned; explicit bean definition
+@Component
 class InnerClinicalTabularResultFactory {
 
-    public Collection<TerminalClinicalVariablesTabularResult> createIntermediateResults(
-            SessionImplementor session,
-            Iterable<PatientDimension> patients,
-            List<TerminalClinicalVariable> flattenedVariables) {
-        flattenedVariables.groupBy { it.group }.
-                collect { group, variables ->
-                    createForGroup group, session, patients, variables
-                }
-    }
+	Collection<TerminalClinicalVariablesTabularResult> createIntermediateResults(
+			SessionImplementor session,
+			Iterable<PatientDimension> patients,
+			List<TerminalClinicalVariable> flattenedVariables) {
 
-    public TerminalClinicalVariablesTabularResult createForGroup(
-            String group,
-            SessionImplementor session,
-            Iterable<PatientDimension> patients,
-            List<TerminalClinicalVariable> relevantVariables) {
-        switch (group) {
-            case TerminalConceptVariable.GROUP_NAME:
-                def query = new TerminalConceptVariablesDataQuery(
-                        session:           session,
-                        patients:          patients,
-                        clinicalVariables: relevantVariables)
-                query.init()
+		flattenedVariables
+				.groupBy { TerminalClinicalVariable it -> it.group }
+				.collect { String group, List<TerminalClinicalVariable> variables ->
+					createForGroup group, session, patients, variables
+				}
+	}
 
-                return new TerminalClinicalVariablesTabularResult(
-                                query.openResultSet(), relevantVariables)
-            case AcrossTrialsTerminalVariable.GROUP_NAME:
-                def query = new AcrossTrialsDataQuery(
-                        session:           session,
-                        patients:          patients,
-                        clinicalVariables: relevantVariables)
-                query.init()
+	TerminalClinicalVariablesTabularResult createForGroup(String group, SessionImplementor session,
+	                                                      Iterable<PatientDimension> patients,
+	                                                      List<TerminalClinicalVariable> relevantVariables) {
+		switch (group) {
+			case TerminalConceptVariable.GROUP_NAME:
+				TerminalConceptVariablesDataQuery query = new TerminalConceptVariablesDataQuery(
+						session: session,
+						patients: patients,
+						clinicalVariables: relevantVariables)
+				query.init()
+				return new TerminalClinicalVariablesTabularResult(query.openResultSet(), relevantVariables)
 
-                return new TerminalClinicalVariablesTabularResult(
-                        query.openResultSet(), relevantVariables)
-            default:
-                throw new IllegalArgumentException("Unknown group name: $group")
-        }
-    }
+			case AcrossTrialsTerminalVariable.GROUP_NAME:
+				AcrossTrialsDataQuery query = new AcrossTrialsDataQuery(
+						session: session,
+						patients: patients,
+						clinicalVariables: relevantVariables)
+				query.init()
+				return new TerminalClinicalVariablesTabularResult(query.openResultSet(), relevantVariables)
+
+			default: throw new IllegalArgumentException('Unknown group name: ' + group)
+		}
+	}
 }

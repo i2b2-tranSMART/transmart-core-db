@@ -19,25 +19,27 @@
 
 package org.transmartproject.db.ontology
 
+import groovy.transform.CompileStatic
 import org.transmartproject.core.ontology.OntologyTerm
 
+@CompileStatic
 class AcrossTrialsTopTerm extends AbstractAcrossTrialsOntologyTerm {
 
-    public final static String ACROSS_TRIALS_TERM_CODE = '-99'
+	public final static String ACROSS_TRIALS_TERM_CODE = '-99'
 
-    /**
-     * May cause some issues in versions where the initial level is -1
-     */
-    final Integer level = 0
+	/**
+	 * May cause some issues in versions where the initial level is -1
+	 */
+	final Integer level = 0
 
-    final String fullName = "\\${ACROSS_TRIALS_TOP_TERM_NAME}\\"
+	final String fullName = "\\${ACROSS_TRIALS_TOP_TERM_NAME}\\"
 
-    final String name = ACROSS_TRIALS_TOP_TERM_NAME
+	final String name = ACROSS_TRIALS_TOP_TERM_NAME
 
-    final String code = ACROSS_TRIALS_TERM_CODE
+	final String code = ACROSS_TRIALS_TERM_CODE
 
-    final EnumSet<OntologyTerm.VisualAttributes> visualAttributes =
-            EnumSet.of(OntologyTerm.VisualAttributes.CONTAINER)
+	final EnumSet<OntologyTerm.VisualAttributes> visualAttributes =
+			EnumSet.of(OntologyTerm.VisualAttributes.CONTAINER)
 
-    final Object metadata = null
+	final metadata = null
 }

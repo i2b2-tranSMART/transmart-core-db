@@ -20,7 +20,8 @@
 package org.transmartproject.db.dataquery.highdim.vcf
 
 import grails.orm.HibernateCriteriaBuilder
-import org.hibernate.Criteria
+import groovy.transform.CompileDynamic
+import groovy.transform.CompileStatic
 import org.hibernate.ScrollableResults
 import org.hibernate.engine.SessionImplementor
 import org.hibernate.transform.Transformers
@@ -29,7 +30,6 @@ import org.transmartproject.core.dataquery.TabularResult
 import org.transmartproject.core.dataquery.highdim.AssayColumn
 import org.transmartproject.core.dataquery.highdim.projections.Projection
 import org.transmartproject.core.exceptions.InvalidArgumentsException
-import org.transmartproject.core.querytool.ConstraintByOmicsValue
 import org.transmartproject.core.querytool.HighDimensionFilterType
 import org.transmartproject.db.dataquery.highdim.AbstractHighDimensionDataTypeModule
 import org.transmartproject.db.dataquery.highdim.DefaultHighDimensionTabularResult
@@ -42,194 +42,173 @@ import org.transmartproject.db.dataquery.highdim.parameterproducers.MapBasedPara
 
 import static org.transmartproject.db.util.GormWorkarounds.createCriteriaBuilder
 
+@CompileStatic
 class VcfModule extends AbstractHighDimensionDataTypeModule {
 
-    final String name = 'vcf'
+	final String name = 'vcf'
+	final String description = 'Genomic Variant data'
+	final List<String> platformMarkerTypes = ['VCF']
 
-    final String description = "Genomic Variant data"
+	// VCF specific projection names
 
-    final List<String> platformMarkerTypes = ['VCF']
+	/**
+	 * Projection to use if you want to compute cohort level properties (such as MAF)
+	 */
+	static final String COHORT_PROJECTION = 'cohort'
 
-    // VCF specific projection names
+	/**
+	 * Projection that simply returns the variant (e.g. CTC) for each subject
+	 */
+	static final String VARIANT_PROJECTION = 'variant'
 
-    /**
-     * Projection to use if you want to compute cohort level properties (such as MAF)
-     */
-    static final String COHORT_PROJECTION    = 'cohort'
+	final Map<String, Class> dataProperties = typesMap(DeVariantSubjectSummaryCoreDb,
+			['reference', 'variant', 'variantType'])
 
-    /**
-     * Projection that simply returns the variant (e.g. CTC) for each subject
-     */
-    static final String VARIANT_PROJECTION    = 'variant'
+	final Map<String, Class> rowProperties = typesMap(VcfDataRow,
+			['chromosome', 'position', 'rsId', 'referenceAllele'])
 
-    final Map<String, Class> dataProperties = typesMap(DeVariantSubjectSummaryCoreDb,
-    ['reference', 'variant', 'variantType'])
+	@Autowired DataRetrievalParameterFactory standardAssayConstraintFactory
+	@Autowired DataRetrievalParameterFactory standardDataConstraintFactory
+	@Autowired ChromosomeSegmentConstraintFactory chromosomeSegmentConstraintFactory
+	@Autowired CorrelationTypesRegistry correlationTypesRegistry
 
-    final Map<String, Class> rowProperties = typesMap(VcfDataRow,
-    ['chromosome', 'position', 'rsId', 'referenceAllele'])
+	protected List<DataRetrievalParameterFactory> createAssayConstraintFactories() {
+		[standardAssayConstraintFactory]
+	}
 
-    @Autowired
-    DataRetrievalParameterFactory standardAssayConstraintFactory
+	protected List<DataRetrievalParameterFactory> createDataConstraintFactories() {
+		chromosomeSegmentConstraintFactory.segmentPrefix = 'summary.'
+		chromosomeSegmentConstraintFactory.segmentChromosomeColumn = 'chr'
+		chromosomeSegmentConstraintFactory.segmentStartColumn = 'pos'
+		chromosomeSegmentConstraintFactory.segmentEndColumn = 'pos'
+		//customize the segment constraint factory to produce constraints targeting the right DeVariantSubjectSummaryCoreDb columns
 
-    @Autowired
-    DataRetrievalParameterFactory standardDataConstraintFactory
+		[standardDataConstraintFactory,
+		 chromosomeSegmentConstraintFactory,
+		 new SearchKeywordDataConstraintFactory(correlationTypesRegistry,
+				 'GENE', 'summary', 'geneId')]
+	}
 
-    @Autowired
-    ChromosomeSegmentConstraintFactory chromosomeSegmentConstraintFactory
+	@CompileDynamic
+	protected List<DataRetrievalParameterFactory> createProjectionFactories() {
+		[new MapBasedParameterFactory(
+				(COHORT_PROJECTION): { Map<String, Object> params ->
+					if (!params.isEmpty()) {
+						throw new InvalidArgumentsException('Expected no parameters here')
+					}
+					new CohortProjection()
+				},
+				(VARIANT_PROJECTION): { Map<String, Object> params ->
+					if (!params.isEmpty()) {
+						throw new InvalidArgumentsException('Expected no parameters here')
+					}
+					new VariantProjection()
+				}),
+		 new AllDataProjectionFactory(dataProperties, rowProperties)]
+	}
 
-    @Autowired
-    CorrelationTypesRegistry correlationTypesRegistry
+	@CompileDynamic
+	HibernateCriteriaBuilder prepareDataQuery(Projection projection, SessionImplementor session) {
+		HibernateCriteriaBuilder criteriaBuilder = createCriteriaBuilder(
+				DeVariantSummaryDetailGene, 'summary', session)
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createAssayConstraintFactories() {
-        [ standardAssayConstraintFactory ]
-    }
+		criteriaBuilder.with {
+			projections {
+				// These fields are needed to fill the VcfDataRow
+				// Fields describing the actual data are added by the projections
+				property 'dataset.id', 'dataset_id'
+				property 'chr', 'chr'
+				property 'pos', 'pos'
+				property 'rsId', 'rsId'
+				property 'reference', 'reference'
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createDataConstraintFactories() {
-        chromosomeSegmentConstraintFactory.segmentPrefix           = 'summary.'
-        chromosomeSegmentConstraintFactory.segmentChromosomeColumn = 'chr'
-        chromosomeSegmentConstraintFactory.segmentStartColumn      = 'pos'
-        chromosomeSegmentConstraintFactory.segmentEndColumn        = 'pos'
-        //customize the segment constraint factory to produce constraints targeting the right DeVariantSubjectSummaryCoreDb columns
-        [
-            standardDataConstraintFactory,
-            chromosomeSegmentConstraintFactory,
-            new SearchKeywordDataConstraintFactory(correlationTypesRegistry,
-                    'GENE', 'summary', 'geneId')
-        ]
-    }
+				property 'ref', 'ref'
+				property 'alt', 'alt'
+				property 'quality', 'quality'
+				property 'filter', 'filter'
+				property 'info', 'info'
+				property 'format', 'format'
+				property 'variantValue', 'variants'
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createProjectionFactories() {
-        [
-                new MapBasedParameterFactory(
-                        (COHORT_PROJECTION): { Map<String, Object> params ->
-                            if (!params.isEmpty()) {
-                                throw new InvalidArgumentsException('Expected no parameters here')
-                            }
-                            new CohortProjection()
-                        },
-                        (VARIANT_PROJECTION): { Map<String, Object> params ->
-                            if (!params.isEmpty()) {
-                                throw new InvalidArgumentsException('Expected no parameters here')
-                            }
-                            new VariantProjection()
-                        }
-                ),
-                new AllDataProjectionFactory(dataProperties, rowProperties)
-        ]
-    }
+				property 'assay.id', 'assayId'
 
-    @Override
-    HibernateCriteriaBuilder prepareDataQuery(Projection projection, SessionImplementor session) {
-        HibernateCriteriaBuilder criteriaBuilder =
-                createCriteriaBuilder(DeVariantSummaryDetailGene, 'summary', session)
+				property 'geneName', 'geneName'
+			}
 
-        criteriaBuilder.with {
-            projections {
-                // These fields are needed to fill the VcfDataRow
-                // Fields describing the actual data are added by
-                // the projections
-                property 'dataset.id'       ,'dataset_id'
-                property 'chr'              ,'chr'
-                property 'pos'              ,'pos'
-                property 'rsId'             ,'rsId'
-                property 'reference'        ,'reference'
+			order 'chr', 'asc'
+			order 'pos', 'asc'
+			order 'rsId', 'asc'
+			order 'assayId', 'asc' // important
 
-                property 'ref'              ,'ref'
-                property 'alt'              ,'alt'
-                property 'quality'          ,'quality'
-                property 'filter'           ,'filter'
-                property 'info'             ,'info'
-                property 'format'           ,'format'
-                property 'variantValue'     ,'variants'
+			// because we're using this transformer, every column has to have an alias
+			instance.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP)
+		}
 
-                property 'assay.id'         ,'assayId'
+		criteriaBuilder
+	}
 
-                property 'geneName'         ,'geneName'
-            }
+	@CompileDynamic
+	TabularResult transformResults(ScrollableResults results, List<AssayColumn> assays, Projection projection) {
+		/* assumption here is the assays in the passed in list are in the same
+		 * order as the assays in the result set */
+		Map assayIndexMap = createAssayIndexMap assays
 
-            order 'chr',  'asc'
-            order 'pos',  'asc'
-            order 'rsId', 'asc'
-            order 'assayId',  'asc' // important
+		new DefaultHighDimensionTabularResult(
+				rowsDimensionLabel: 'Regions',
+				columnsDimensionLabel: 'Sample codes',
+				allowMissingAssays: true,
+				indicesList: assays,
+				results: results,
+				assayIdFromRow: { it[0].assayId },
+				inSameGroup: { a, b -> a[0].chr == b[0].chr && a[0].pos == b[0].pos && a[0].rsId == b[0].rsId },
+				finalizeGroup: { List list -> /* list of all the results belonging to a group defined by inSameGroup */
+					/* list of arrays with one element: a map */
+					/* we may have nulls if allowMissingAssays is true,
+					 *, but we're guaranteed to have at least one non-null */
+					def firstNonNullCell = list.find()
+					new VcfDataRow(
+							datasetId: firstNonNullCell[0].dataset_id,
 
-            // because we're using this transformer, every column has to have an alias
-            instance.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP)
-        }
+							// Chromosome to define the position
+							chromosome: firstNonNullCell[0].chr,
+							position: firstNonNullCell[0].pos,
+							rsId: firstNonNullCell[0].rsId,
 
-        criteriaBuilder
-    }
+							// Reference and alternatives for this position
+							referenceAllele: firstNonNullCell[0].ref,
+							alternatives: firstNonNullCell[0].alt,
+							reference: firstNonNullCell[0].reference,
 
-    @Override
-    TabularResult transformResults(ScrollableResults results, List<AssayColumn> assays, Projection projection) {
-        /* assumption here is the assays in the passed in list are in the same
-         * order as the assays in the result set */
-        Map assayIndexMap = createAssayIndexMap assays
+							// Study level properties
+							quality: firstNonNullCell[0].quality,
+							filter: firstNonNullCell[0].filter,
+							info: firstNonNullCell[0].info,
+							format: firstNonNullCell[0].format,
+							variants: firstNonNullCell[0].variants,
 
-        new DefaultHighDimensionTabularResult(
-                rowsDimensionLabel:    'Regions',
-                columnsDimensionLabel: 'Sample codes',
-                allowMissingAssays:    true,
-                indicesList:           assays,
-                results:               results,
-                assayIdFromRow:        { it[0].assayId } ,
-                inSameGroup:           { a, b -> a[0].chr == b[0].chr && a[0].pos == b[0].pos && a[0].rsId == b[0].rsId },
-                finalizeGroup:         { List list -> /* list of all the results belonging to a group defined by inSameGroup */
-                    /* list of arrays with one element: a map */
-                    /* we may have nulls if allowMissingAssays is true,
-                     *, but we're guaranteed to have at least one non-null */
-                    def firstNonNullCell = list.find()
-                    new VcfDataRow(
-                            datasetId: firstNonNullCell[0].dataset_id,
-                            
-                            // Chromosome to define the position
-                            chromosome: firstNonNullCell[0].chr,
-                            position: firstNonNullCell[0].pos,
-                            rsId: firstNonNullCell[0].rsId,
+							geneName: firstNonNullCell[0].geneName,
 
-                            // Reference and alternatives for this position
-                            referenceAllele: firstNonNullCell[0].ref,
-                            alternatives: firstNonNullCell[0].alt,
-                            reference: firstNonNullCell[0].reference,
+							assayIndexMap: assayIndexMap,
+							data: list.collect { projection.doWithResult it?.getAt(0) }
+					)
+				}
+		)
+	}
 
-                            // Study level properties
-                            quality: firstNonNullCell[0].quality,
-                            filter: firstNonNullCell[0].filter,
-                            info:  firstNonNullCell[0].info,
-                            format: firstNonNullCell[0].format,
-                            variants: firstNonNullCell[0].variants,
+	List<String> searchAnnotation(String concept_code, String search_term, String search_property) {
+		//TODO VCF annotation searching not yet supported
+		[]
+	}
 
-                            geneName: firstNonNullCell[0].geneName,
+	List<String> getSearchableAnnotationProperties() {
+		['chromosome', 'position', 'rsId', 'referenceAllele']
+	}
 
-                            assayIndexMap: assayIndexMap,
-                            data: list.collect {
-                                projection.doWithResult it?.getAt(0)
-                            }
-                    )
-                }
-        )
-    }
+	HighDimensionFilterType getHighDimensionFilterType() {
+		HighDimensionFilterType.VCF
+	}
 
-    @Override
-    List<String> searchAnnotation(String concept_code, String search_term, String search_property) {
-        //TODO VCF annotation searching not yet supported
-        []
-    }
-
-    @Override
-    List<String> getSearchableAnnotationProperties() {
-        ['chromosome', 'position', 'rsId', 'referenceAllele']
-    }
-
-    @Override
-    HighDimensionFilterType getHighDimensionFilterType() {
-        HighDimensionFilterType.VCF
-    }
-
-    @Override
-    List<String> getSearchableProjections() {
-        [Projection.VAR_CLASS, Projection.VAR_TYPE, Projection.REF_ALT]
-    }
+	List<String> getSearchableProjections() {
+		[Projection.VAR_CLASS, Projection.VAR_TYPE, Projection.REF_ALT]
+	}
 }

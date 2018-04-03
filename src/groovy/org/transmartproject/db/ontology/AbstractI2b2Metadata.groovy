@@ -36,46 +36,45 @@ abstract class AbstractI2b2Metadata extends AbstractQuerySpecifyingType implemen
 	String tooltip
 	String metadataxml
 
-	/* properties abstracted with other properties */
+	// properties abstracted with other properties
 	String cVisualattributes = ''
 	Character cSynonymCd = 'N'
 
-	/* Transient */
+	// Transient
 	String tableCode
 
 	static transients = ['synonym', 'metadata', 'tableCode']
 
 	static mapping = {
+		code               column: 'C_BASECODE'
+		columnDataType     column: 'C_COLUMNDATATYPE'
+		columnName         column: 'C_COLUMNNAME'
+		dimensionCode      column: 'C_DIMCODE'
+		dimensionTableName column: 'C_TABLENAME'
+		factTableColumn    column: 'C_FACTTABLECOLUMN'
 		fullName           column: 'C_FULLNAME'
 		level              column: 'C_HLEVEL'
-		name               column: 'C_NAME'
-		code               column: 'C_BASECODE'
-		tooltip            column: 'C_TOOLTIP'
-		factTableColumn    column: 'C_FACTTABLECOLUMN'
-		dimensionTableName column: 'C_TABLENAME'
-		columnName         column: 'C_COLUMNNAME'
-		columnDataType     column: 'C_COLUMNDATATYPE'
-		operator           column: 'C_OPERATOR'
-		dimensionCode      column: 'C_DIMCODE'
 		metadataxml        column: 'C_METADATAXML'
+		name               column: 'C_NAME'
+		operator           column: 'C_OPERATOR'
+		tooltip            column: 'C_TOOLTIP'
 	}
 
 	static constraints = {
-		level             min: 0
-		fullName          size: 2..700
-		name              size: 1..2000
 		code              nullable: true, maxSize: 50
-		tooltip           nullable: true, maxSize: 900
 		cVisualattributes size: 1..3
+		fullName          size: 2..700
+		level             min: 0
 		metadataxml       nullable: true
+		name size:        1..2000
+		tooltip           nullable: true, maxSize: 900
 
 		AbstractQuerySpecifyingType.constraints.delegate = delegate
 		AbstractQuerySpecifyingType.constraints()
 	}
 
-	@Override
 	EnumSet<VisualAttributes> getVisualAttributes() {
-		VisualAttributes.forSequence(cVisualattributes)
+		VisualAttributes.forSequence cVisualattributes
 	}
 
 	boolean isSynonym() {
@@ -92,10 +91,10 @@ abstract class AbstractI2b2Metadata extends AbstractQuerySpecifyingType implemen
 		}
 
 		TableAccess candidate = null
-		TableAccess.list().each {
-			if (fullName.startsWith(it.fullName)) {
-				if (!candidate || it.fullName.length() > candidate.fullName.length()) {
-					candidate = it
+		for  (TableAccess ta in TableAccess.list()) {
+			if (fullName.startsWith(ta.fullName)) {
+				if (!candidate || ta.fullName.length() > candidate.fullName.length()) {
+					candidate = ta
 				}
 			}
 		}
@@ -112,13 +111,11 @@ abstract class AbstractI2b2Metadata extends AbstractQuerySpecifyingType implemen
 		new ConceptKey(getTableCode(), fullName)
 	}
 
-	@Override
 	String getKey() {
 		conceptKey.toString()
 	}
 
-	@Override
-	Object getMetadata() {
+	def getMetadata() {
 		if (!metadataxml) {
 			return null
 		}
@@ -144,26 +141,24 @@ abstract class AbstractI2b2Metadata extends AbstractQuerySpecifyingType implemen
 		ret
 	}
 
-	@Override
 	Study getStudy() {
 		// since Study (in this sense) is a transmart concept, this only makes
 		// sense for objects from tranSMART's i2b2 metadata table: I2b2
-		null
 	}
 
 	List<OntologyTerm> getChildren(boolean showHidden = false, boolean showSynonyms = false) {
-		getDescendants(false, showHidden, showSynonyms)
+		getDescendants false, showHidden, showSynonyms
 	}
 
 	List<OntologyTerm> getAllDescendants(boolean showHidden = false, boolean showSynonyms = false) {
-		getDescendants(true, showHidden, showSynonyms)
+		getDescendants true, showHidden, showSynonyms
 	}
 
 	private List<OntologyTerm> getDescendants(boolean allDescendants, boolean showHidden = false,
 	                                          boolean showSynonyms = false) {
-		def fullNameSearch = this.conceptKey.conceptFullName.toString().asLikeLiteral() + '%'
+		String fullNameSearch = conceptKey.conceptFullName.toString().asLikeLiteral() + '%'
 
-		def ret = createCriteria().list {
+		List<OntologyTerm> ret = createCriteria().list {
 			and {
 				like 'fullName', fullNameSearch
 				if (allDescendants) {
@@ -180,13 +175,17 @@ abstract class AbstractI2b2Metadata extends AbstractQuerySpecifyingType implemen
 					eq 'cSynonymCd', 'N' as char
 				}
 			}
-			order('name')
+			order 'name'
 		}
-		ret.each { it.setTableCode(getTableCode()) }
+
+		String tableCode = getTableCode()
+		for (it in ret) {
+			it.tableCode = tableCode
+		}
+
 		ret
 	}
 
-	@Override
 	List<Patient> getPatients() {
 		super.getPatients(this)
 	}

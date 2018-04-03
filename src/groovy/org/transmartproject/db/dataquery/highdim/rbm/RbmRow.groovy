@@ -19,28 +19,25 @@
 
 package org.transmartproject.db.dataquery.highdim.rbm
 
+import groovy.transform.CompileStatic
 import groovy.transform.ToString
 import org.transmartproject.core.dataquery.highdim.BioMarkerDataRow
 import org.transmartproject.db.dataquery.highdim.AbstractDataRow
 
-@ToString(excludes = [ 'assayIndexMap' ])
+@CompileStatic
+@ToString(excludes = ['assayIndexMap'])
 class RbmRow extends AbstractDataRow implements BioMarkerDataRow<Object> {
 
-    Integer annotationId
+	Integer annotationId
+	String uniprotName
+	String antigenName
+	String unit
 
-    String uniprotName
+	String getLabel() {
+		unit ? "${antigenName} ${unit}" : antigenName
+	}
 
-    String antigenName
-
-    String unit
-
-    @Override
-    String getLabel() {
-        unit ? "${antigenName} ${unit}" : antigenName
-    }
-
-    @Override
-    String getBioMarker() {
-        uniprotName
-    }
+	String getBioMarker() {
+		uniprotName
+	}
 }

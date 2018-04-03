@@ -20,7 +20,7 @@
 package org.transmartproject.db.dataquery.clinical
 
 import com.google.common.collect.Lists
-import com.google.common.collect.Maps
+import grails.orm.HibernateCriteriaBuilder
 import org.hibernate.ScrollMode
 import org.hibernate.ScrollableResults
 import org.hibernate.engine.SessionImplementor
@@ -40,98 +40,92 @@ import static org.transmartproject.db.util.GormWorkarounds.getHibernateInCriteri
  */
 class AcrossTrialsDataQuery {
 
-    List<AcrossTrialsTerminalVariable> clinicalVariables
+	private boolean initialized
 
-    Iterable<PatientDimension> patients
+	List<AcrossTrialsTerminalVariable> clinicalVariables
+	Iterable<PatientDimension> patients
+	SessionImplementor session
 
-    SessionImplementor session
+	void init() {
+		fillInAcrossTrialsTerminalVariables()
+		initialized = true
+	}
 
-    private boolean inited
+	ScrollableResults openResultSet() {
+		if (!initialized) {
+			throw new IllegalStateException('init() not called successfully yet')
+		}
 
-    void init() {
-        fillInAcrossTrialsTerminalVariables()
-        inited = true
-    }
+		HibernateCriteriaBuilder criteriaBuilder = createCriteriaBuilder(ObservationFact, 'obs', session)
+		criteriaBuilder.with {
+			projections {
+				property 'patient.id'
+				property 'modifierCd'
+				property 'valueType'
+				property 'textValue'
+				property 'numberValue'
+			}
+			order 'patient.id'
+			order 'modifierCd'
+		}
 
-    ScrollableResults openResultSet() {
-        if (!inited) {
-            throw new IllegalStateException('init() not called successfully yet')
-        }
+		if (patients instanceof PatientQuery) {
+			criteriaBuilder.add getHibernateInCriterion('patient.id', patients.forIds())
+		}
+		else {
+			criteriaBuilder.in 'patient', Lists.newArrayList(patients)
+		}
 
-        def criteriaBuilder = createCriteriaBuilder(ObservationFact, 'obs', session)
-        criteriaBuilder.with {
-            projections {
-                property 'patient.id'
-                property 'modifierCd'
-                property 'valueType'
-                property 'textValue'
-                property 'numberValue'
-            }
-            order 'patient.id'
-            order 'modifierCd'
-        }
+		criteriaBuilder.in 'modifierCd', clinicalVariables*.code
 
-        if (patients instanceof PatientQuery) {
-            criteriaBuilder.add(getHibernateInCriterion('patient.id',
-                    patients.forIds()))
-        } else {
-            criteriaBuilder.in('patient',  Lists.newArrayList(patients))
-        }
+		criteriaBuilder.scroll ScrollMode.FORWARD_ONLY
+	}
 
-        criteriaBuilder.in('modifierCd', clinicalVariables*.code)
+	private void fillInAcrossTrialsTerminalVariables() {
+		Map<String, AcrossTrialsTerminalVariable> conceptPaths = [:]
 
-        criteriaBuilder.scroll ScrollMode.FORWARD_ONLY
-    }
+		if (!clinicalVariables) {
+			throw new InvalidArgumentsException('No clinical variables specified')
+		}
 
-    private void fillInAcrossTrialsTerminalVariables() {
-        Map<String, AcrossTrialsTerminalVariable> conceptPaths = Maps.newHashMap()
+		for (ClinicalVariable it in clinicalVariables) {
+			if (!(it instanceof AcrossTrialsTerminalVariable)) {
+				throw new InvalidArgumentsException('Only across trial terminal variables are supported')
+			}
 
-        if (!clinicalVariables) {
-            throw new InvalidArgumentsException('No clinical variables specified')
-        }
+			if (!it.modifierCode) {
+				if (conceptPaths.containsKey(it.conceptPath)) {
+					throw new InvalidArgumentsException("Specified multiple " +
+							"variables with the same concept path: " +
+							it.conceptPath)
+				}
+				conceptPaths[convertPath(it.conceptPath)] = it
+			}
+		}
 
-        clinicalVariables.each { ClinicalVariable it ->
-            if (!(it instanceof AcrossTrialsTerminalVariable)) {
-                throw new InvalidArgumentsException(
-                        'Only across trial terminal variables are supported')
-            }
+		def res = ModifierDimensionView.withCriteria {
+			projections {
+				property 'path'
+				property 'code'
+			}
 
-            if (!it.modifierCode) {
-                if (conceptPaths.containsKey(it.conceptPath)) {
-                    throw new InvalidArgumentsException("Specified multiple " +
-                            "variables with the same concept path: " +
-                            it.conceptPath)
-                }
-                conceptPaths[convertPath(it.conceptPath)] = it
-            }
-        }
+			'in' 'path', conceptPaths.keySet()
+		}
 
-        def res = ModifierDimensionView.withCriteria {
-            projections {
-                property 'path'
-                property 'code'
-            }
+		for (modifier in res) {
+			String path = modifier[0]
+			String code = modifier[1]
+			conceptPaths[path].modifierCode = code
+		}
 
-            'in' 'path', conceptPaths.keySet()
-        }
+		for (var in conceptPaths.values()) {
+			if (var.modifierCode == null) {
+				throw new InvalidArgumentsException("Concept path '${var.conceptPath}' did not yield any results")
+			}
+		}
+	}
 
-        for (modifier in res) {
-            String path = modifier[0],
-                   code = modifier[1]
-
-            AcrossTrialsTerminalVariable variable = conceptPaths[path]
-            variable.modifierCode = code
-        }
-
-        for (var in conceptPaths.values()) {
-            if (var.modifierCode == null) {
-                throw new InvalidArgumentsException("Concept path " +
-                        "'${var.conceptPath}' did not yield any results")
-            }
-        }
-    }
-
-    private String convertPath(originalPath) {
-        originalPath - ~/^\\${ACROSS_TRIALS_TOP_TERM_NAME}/
-    }
+	private String convertPath(originalPath) {
+		originalPath - ~/^\\${ACROSS_TRIALS_TOP_TERM_NAME}/
+	}
 }

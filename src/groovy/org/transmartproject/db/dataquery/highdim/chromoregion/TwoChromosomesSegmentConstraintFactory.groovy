@@ -1,63 +1,67 @@
 package org.transmartproject.db.dataquery.highdim.chromoregion
 
+import groovy.transform.CompileStatic
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Scope
 import org.springframework.stereotype.Component
 import org.transmartproject.core.dataquery.highdim.dataconstraints.DataConstraint
+import org.transmartproject.db.dataquery.highdim.dataconstraints.CriteriaDataConstraint
 import org.transmartproject.db.dataquery.highdim.dataconstraints.DisjunctionDataConstraint
 import org.transmartproject.db.dataquery.highdim.parameterproducers.AbstractMethodBasedParameterFactory
 import org.transmartproject.db.dataquery.highdim.parameterproducers.ProducerFor
 
 /**
- * Created by j.hudecek on 5-12-2014.
+ * @author j.hudecek
  */
+@CompileStatic
 @Component
-@Scope("prototype")
+@Scope('prototype')
 class TwoChromosomesSegmentConstraintFactory extends AbstractMethodBasedParameterFactory {
-    String setSegmentPrefix(String value) {
-        chromosomeSegmentConstraintFactoryUp.segmentPrefix = value
-    }
 
-    String setSegmentChromosomeColumn(String value) {
-        chromosomeSegmentConstraintFactoryUp.segmentChromosomeColumn = value
-    }
+	String setSegmentPrefix(String value) {
+		chromosomeSegmentConstraintFactoryUp.segmentPrefix = value
+	}
 
-    String setSegmentStartColumn(String value) {
-        chromosomeSegmentConstraintFactoryUp.segmentStartColumn = value
-    }
+	String setSegmentChromosomeColumn(String value) {
+		chromosomeSegmentConstraintFactoryUp.segmentChromosomeColumn = value
+	}
 
-    String setSegmentEndColumn(String value) {
-        chromosomeSegmentConstraintFactoryUp.segmentEndColumn = value
-    }
+	String setSegmentStartColumn(String value) {
+		chromosomeSegmentConstraintFactoryUp.segmentStartColumn = value
+	}
 
-    String setSegmentTwoPrefix(String value) {
-        chromosomeSegmentConstraintFactoryDown.segmentPrefix = value
-    }
+	String setSegmentEndColumn(String value) {
+		chromosomeSegmentConstraintFactoryUp.segmentEndColumn = value
+	}
 
-    String setSegmentTwoChromosomeColumn(String value) {
-        chromosomeSegmentConstraintFactoryDown.segmentChromosomeColumn = value
-    }
+	String setSegmentTwoPrefix(String value) {
+		chromosomeSegmentConstraintFactoryDown.segmentPrefix = value
+	}
 
-    String setSegmentTwoStartColumn(String value) {
-        chromosomeSegmentConstraintFactoryDown.segmentStartColumn = value
-    }
+	String setSegmentTwoChromosomeColumn(String value) {
+		chromosomeSegmentConstraintFactoryDown.segmentChromosomeColumn = value
+	}
 
-    String setSegmentTwoEndColumn(String value) {
-        chromosomeSegmentConstraintFactoryDown.segmentEndColumn = value
-    }
+	String setSegmentTwoStartColumn(String value) {
+		chromosomeSegmentConstraintFactoryDown.segmentStartColumn = value
+	}
 
-    @Autowired
-    ChromosomeSegmentConstraintFactory chromosomeSegmentConstraintFactoryUp
+	String setSegmentTwoEndColumn(String value) {
+		chromosomeSegmentConstraintFactoryDown.segmentEndColumn = value
+	}
 
-    @Autowired
-    ChromosomeSegmentConstraintFactory chromosomeSegmentConstraintFactoryDown
+	@Autowired
+	ChromosomeSegmentConstraintFactory chromosomeSegmentConstraintFactoryUp
 
-    @ProducerFor(DataConstraint.CHROMOSOME_SEGMENT_CONSTRAINT)
-    DisjunctionDataConstraint createTwoChromosomeSegmentConstraints(Map<String, Object> params) {
+	@Autowired
+	ChromosomeSegmentConstraintFactory chromosomeSegmentConstraintFactoryDown
 
-        def chr = chromosomeSegmentConstraintFactoryUp.createChromosomeSegmentConstraint(params)
-        def chr2 = chromosomeSegmentConstraintFactoryDown.createChromosomeSegmentConstraint(params)
+	@ProducerFor(DataConstraint.CHROMOSOME_SEGMENT_CONSTRAINT)
+	DisjunctionDataConstraint createTwoChromosomeSegmentConstraints(Map<String, Object> params) {
 
-        return new DisjunctionDataConstraint(constraints: [chr, chr2])
-    }
+		ChromosomeSegmentConstraint chr = chromosomeSegmentConstraintFactoryUp.createChromosomeSegmentConstraint(params)
+		ChromosomeSegmentConstraint chr2 = chromosomeSegmentConstraintFactoryDown.createChromosomeSegmentConstraint(params)
+
+		new DisjunctionDataConstraint(constraints: [chr, chr2] as List<CriteriaDataConstraint> )
+	}
 }

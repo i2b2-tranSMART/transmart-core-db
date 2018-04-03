@@ -24,7 +24,9 @@ import org.transmartproject.core.dataquery.highdim.HighDimensionDataTypeResource
 import org.transmartproject.core.exceptions.InvalidArgumentsException
 import org.transmartproject.core.exceptions.InvalidRequestException
 import org.transmartproject.core.exceptions.NoSuchResourceException
+import org.transmartproject.core.ontology.ConceptsResource
 import org.transmartproject.core.ontology.OntologyTerm
+import org.transmartproject.core.querytool.ConstraintByOmicsValue
 import org.transmartproject.core.querytool.ConstraintByValue
 import org.transmartproject.core.querytool.Item
 import org.transmartproject.core.querytool.Panel
@@ -47,30 +49,32 @@ import static org.transmartproject.db.support.DatabasePortabilityService.Databas
 @Slf4j('logger')
 class PatientSetQueryBuilderService {
 
-	def conceptsResourceService
+	static transactional = false
+
+	ConceptsResource conceptsResourceService
 	DatabasePortabilityService databasePortabilityService
 	HighDimensionResourceService highDimensionResourceService
 
 	String buildPatientIdListQuery(QueryDefinition definition, User user = null) throws InvalidRequestException {
 
-		generalDefinitionValidation(definition)
+		generalDefinitionValidation definition
 
 		int panelNum = 1
-		def panelClauses = definition.panels.collect { Panel panel ->
+		List<Map> panelClauses = definition.panels.collect { Panel panel ->
 
-			def itemPredicates = panel.items.collect { Item it ->
+			def itemPredicates = panel.items.collect { Item item ->
 				OntologyTerm term
 				try {
-					term = conceptsResourceService.getByKey(it.conceptKey)
+					term = conceptsResourceService.getByKey(item.conceptKey)
 					if (!(term instanceof MetadataSelectQuerySpecification)) {
-						throw new InvalidArgumentsException("Ontology term with key $it.conceptKey does not specify a query")
+						throw new InvalidArgumentsException("Ontology term with key $item.conceptKey does not specify a query")
 					}
 				}
 				catch (NoSuchResourceException nsr) {
-					throw new InvalidRequestException("No such concept key: $it.conceptKey", nsr)
+					throw new InvalidRequestException("No such concept key: $item.conceptKey", nsr)
 				}
 
-				doItem(term, it, user)
+				doItem term, item, user
 			}
 
 			/*
@@ -85,10 +89,10 @@ class PatientSetQueryBuilderService {
 			 *      (valtype_cd = 'N' AND nval_num >= 50 AND tval_char = 'G')
 			 * )
 			 */
-			def bigPredicate = itemPredicates.collect { "($it)" }.join(' OR ')
+			String bigPredicate = itemPredicates.collect { '(' + it + ')' }.join(' OR ')
 
 			if (panel.items.size() > 1) {
-				bigPredicate = "($bigPredicate)"
+				bigPredicate = '(' + bigPredicate + ')'
 			}
 
 			[id    : panelNum++,
@@ -101,25 +105,25 @@ class PatientSetQueryBuilderService {
 		}
 
 		if (panelClauses.size() == 1) {
-			def panel = panelClauses[0]
+			Map panel = panelClauses[0]
 			if (!panel.invert) {
 				/* The intersect/expect is not enough for deleting duplicates
 				 * because there is only one select; we must adda a group by */
-				"$panel.select GROUP BY patient_num"
+				panel.select + ' GROUP BY patient_num'
 			}
 			else {
-				"SELECT patient_num FROM I2B2DEMODATA.patient_dimension " +
-						"$databasePortabilityService.complementOperator ($panel.select)"
+				'SELECT patient_num FROM I2B2DEMODATA.patient_dimension ' +
+						databasePortabilityService.complementOperator + ' (' + panel.select + ')'
 			}
 		}
 		else {
-			panelClauses.inject("") { String acc, panel ->
+			panelClauses.inject('') { String acc, panel ->
 				acc + (acc.empty
 						? ''
 						: panel.invert
 						? " $databasePortabilityService.complementOperator "
 						: ' INTERSECT ') +
-						"($panel.select)"
+						'(' + panel.select + ')'
 			}
 		}
 	}
@@ -140,7 +144,7 @@ class PatientSetQueryBuilderService {
 			windowFunctionOrderBy = 'ORDER BY patient_num'
 		}
 
-		String sql = "INSERT INTO I2B2DEMODATA.qt_patient_set_collection (result_instance_id, patient_num, set_index) " +
+		String sql = 'INSERT INTO I2B2DEMODATA.qt_patient_set_collection (result_instance_id, patient_num, set_index) ' +
 				"SELECT ${resultInstance.id}, P.patient_num, " +
 				" row_number() OVER ($windowFunctionOrderBy) " +
 				"FROM ($patientSubQuery ORDER BY 1) P"
@@ -153,7 +157,7 @@ class PatientSetQueryBuilderService {
 	/* Mapping between the number value constraint and the SQL predicates. The
 	 * value constraint may correspond to one or two SQL predicates ORed
 	 * together */
-	private static final Map NUMBER_QUERY_MAPPING = [
+	private static final Map<ConstraintByValue.Operator, List> NUMBER_QUERY_MAPPING = [
 			(LOWER_THAN)         : [['<', ['E', 'LE']], ['<=', ['L']]],
 			(LOWER_OR_EQUAL_TO)  : [['<=', ['E', 'LE', 'L']]],
 			(EQUAL_TO)           : [['=', ['E']]],
@@ -164,33 +168,33 @@ class PatientSetQueryBuilderService {
 
 	private String doItem(MetadataSelectQuerySpecification term, Item item, User user) {
 		/* constraint represented by the ontology term */
-		def clause = generateObservationFactConstraint(user, term)
+		String clause = generateObservationFactConstraint(user, term)
 		/* additional (and optional) constraint by value */
-		def constraint = item.constraint
-		def omics_value_constraint = item.constraintByOmicsValue
+		ConstraintByValue constraint = item.constraint
+		ConstraintByOmicsValue omicsValueConstraint = item.constraintByOmicsValue
 		if (constraint) {
 			if (constraint.valueType == ConstraintByValue.ValueType.NUMBER) {
-				def spec = NUMBER_QUERY_MAPPING[constraint.operator]
-				def constraintValue = doConstraintNumber(constraint.operator, constraint.constraint)
+				List spec = NUMBER_QUERY_MAPPING[constraint.operator]
+				String constraintValue = doConstraintNumber(constraint.operator, constraint.constraint)
 				def predicates = spec.collect {
 					"valtype_cd = 'N' AND nval_num ${it[0]} $constraintValue AND " +
-							"tval_char " + (it[1].size() == 1
+							'tval_char ' + (it[1].size() == 1
 							? "= '${it[1][0]}'"
 							: "IN (${it[1].collect { "'$it'" }.join ', '})")
 				}
 
-				clause += " AND (" + predicates.collect { "($it)" }.join(' OR ') + ")"
+				clause += ' AND (' + predicates.collect { '(' + it + ')' }.join(' OR ') + ')'
 			}
 			else if (constraint.valueType == ConstraintByValue.ValueType.FLAG) {
 				clause += " AND (valueflag_cd = ${doConstraintFlag(constraint.constraint)})"
 			}
 		}
 
-		if (omics_value_constraint) {
+		if (omicsValueConstraint) {
 			HighDimensionDataTypeResource resource = highDimensionResourceService.getHighDimDataTypeResourceFromConcept(item.conceptKey)
 			if (!resource) {
-				Map distribution = resource.getDistribution(omics_value_constraint, item.conceptKey, null)
-				clause += "AND patient_num IN (" + distribution.keySet().collect { it.toString() }.join(",") + ")"
+				Map distribution = resource.getDistribution(omicsValueConstraint, item.conceptKey, null)
+				clause += 'AND patient_num IN (' + distribution.keySet().collect { it.toString() }.join(',') + ')'
 			}
 			else {
 				logger.warn 'No implementation exists for building a patient set query for {} data.',
@@ -313,7 +317,8 @@ class PatientSetQueryBuilderService {
 	}
 
 	String generateObservationFactConstraint(User userInContext, MetadataSelectQuerySpecification spec) {
-		String res = "SELECT $spec.factTableColumn " +
+		String res =
+				"SELECT $spec.factTableColumn " +
 				"FROM $spec.dimensionTableName " +
 				"WHERE $spec.columnName $spec.operator ${getProcessedDimensionCode(spec)}"
 		if (spec.operator.equalsIgnoreCase('like') &&

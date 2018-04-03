@@ -97,7 +97,6 @@ class TerminalClinicalVariablesTabularResult extends
 		closeSession = false
 	}
 
-
 	final String columnEntityName = 'concept'
 
 	protected getIndexObjectId(TerminalConceptVariable object) {
@@ -141,7 +140,7 @@ class TerminalClinicalVariablesTabularResult extends
 
 		new PatientIdAnnotatedDataRow(
 				patientId: (list.find { it != null })[PATIENT_NUM_COLUMN_INDEX] as Long,
-				data: Arrays.asList(transformedData) as List,
+				data: Arrays.asList(transformedData),
 				columnToIndex: localIndexMap as Map)
 	}
 

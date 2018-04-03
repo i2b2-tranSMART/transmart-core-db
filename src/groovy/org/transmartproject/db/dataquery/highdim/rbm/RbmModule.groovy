@@ -39,156 +39,136 @@ import org.transmartproject.db.dataquery.highdim.parameterproducers.DataRetrieva
 import org.transmartproject.db.dataquery.highdim.parameterproducers.SimpleAnnotationConstraintFactory
 import org.transmartproject.db.dataquery.highdim.parameterproducers.SimpleRealProjectionsFactory
 
-import static org.hibernate.sql.JoinFragment.INNER_JOIN
 import static org.transmartproject.db.util.GormWorkarounds.createCriteriaBuilder
 
 class RbmModule extends AbstractHighDimensionDataTypeModule {
 
-    final String name = 'rbm'
+	final String name = 'rbm'
+	final String description = "RBM data"
+	final List<String> platformMarkerTypes = ['RBM']
+	final Map<String, Class> dataProperties = typesMap(DeSubjectRbmData,
+			['value', 'logIntensity', 'zscore'])
+	final Map<String, Class> rowProperties = typesMap(RbmRow,
+			['antigenName', 'unit', 'uniprotName'])
 
-    final String description = "RBM data"
+	@Autowired DataRetrievalParameterFactory standardAssayConstraintFactory
+	@Autowired DataRetrievalParameterFactory standardDataConstraintFactory
+	@Autowired CorrelationTypesRegistry correlationTypesRegistry
 
-    final List<String> platformMarkerTypes = ['RBM']
+	protected List<DataRetrievalParameterFactory> createAssayConstraintFactories() {
+		[standardAssayConstraintFactory]
+	}
 
-    final Map<String, Class> dataProperties = typesMap(DeSubjectRbmData,
-            ['value', 'logIntensity', 'zscore'])
+	protected List<DataRetrievalParameterFactory> createDataConstraintFactories() {
+		[standardDataConstraintFactory,
+		 new SimpleAnnotationConstraintFactory(field: 'p', annotationClass: DeRbmAnnotation.class),
+		 new SearchKeywordDataConstraintFactory(correlationTypesRegistry,
+				 'PROTEIN', 'p', 'uniprotId')]
+	}
 
-    final Map<String, Class> rowProperties = typesMap(RbmRow,
-            ['antigenName', 'unit', 'uniprotName'])
+	protected List<DataRetrievalParameterFactory> createProjectionFactories() {
+		[new SimpleRealProjectionsFactory(
+				(Projection.LOG_INTENSITY_PROJECTION): 'logIntensity',
+				(Projection.DEFAULT_REAL_PROJECTION): 'value',
+				(Projection.ZSCORE_PROJECTION): 'zscore'),
+		 new AllDataProjectionFactory(dataProperties, rowProperties)]
+	}
 
-    @Autowired
-    DataRetrievalParameterFactory standardAssayConstraintFactory
+	HibernateCriteriaBuilder prepareDataQuery(Projection projection, SessionImplementor session) {
+		HibernateCriteriaBuilder criteriaBuilder = createCriteriaBuilder(
+				DeSubjectRbmData, 'rbmdata', session)
 
-    @Autowired
-    DataRetrievalParameterFactory standardDataConstraintFactory
+		criteriaBuilder.with {
+			createAlias 'annotations', 'p', INNER_JOIN
 
-    @Autowired
-    CorrelationTypesRegistry correlationTypesRegistry
+			projections {
+				property 'assay.id', 'assayId'
+				property 'p.id', 'annotationId'
+				property 'p.antigenName', 'antigenName'
+				property 'p.uniprotName', 'uniprotName'
+				property 'unit', 'unit'
+			}
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createAssayConstraintFactories() {
-        [ standardAssayConstraintFactory ]
-    }
+			order 'p.id', 'asc'
+			order 'p.uniprotId', 'asc'
+			order 'assay.id', 'asc'
+			instance.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP)
+		}
+		criteriaBuilder
+	}
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createDataConstraintFactories() {
-        [
-                standardDataConstraintFactory,
-                new SimpleAnnotationConstraintFactory(field: 'p', annotationClass: DeRbmAnnotation.class),
-                new SearchKeywordDataConstraintFactory(correlationTypesRegistry,
-                        'PROTEIN', 'p', 'uniprotId'),
-        ]
-    }
+	TabularResult transformResults(ScrollableResults results, List<AssayColumn> assays, Projection projection) {
+		Map assayIndexes = createAssayIndexMap assays
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createProjectionFactories() {
-        [ new SimpleRealProjectionsFactory(
-                (Projection.LOG_INTENSITY_PROJECTION): 'logIntensity',
-                (Projection.DEFAULT_REAL_PROJECTION): 'value',
-                (Projection.ZSCORE_PROJECTION):       'zscore'),
-        new AllDataProjectionFactory(dataProperties, rowProperties)]
-    }
+		DefaultHighDimensionTabularResult preliminaryResult = new DefaultHighDimensionTabularResult(
+				rowsDimensionLabel: 'Antigenes',
+				columnsDimensionLabel: 'Sample codes',
+				indicesList: assays,
+				results: results,
+				//TODO Remove this. On real data missing assays are signaling about problems
+				allowMissingAssays: true,
+				assayIdFromRow: { it[0].assayId },
+				inSameGroup: { a, b -> a.annotationId == b.annotationId && a.uniprotId == b.uniprotId },
+				finalizeGroup: { List list ->
+					def firstNonNullCell = list.find()
+					new RbmRow(
+							annotationId: firstNonNullCell[0].annotationId,
+							antigenName: firstNonNullCell[0].antigenName,
+							unit: firstNonNullCell[0].unit,
+							uniprotName: firstNonNullCell[0].uniprotName,
+							assayIndexMap: assayIndexes,
+							data: list.collect { projection.doWithResult it?.getAt(0) }
+					)
+				}
+		)
 
-    @Override
-    HibernateCriteriaBuilder prepareDataQuery(Projection projection, SessionImplementor session) {
-        HibernateCriteriaBuilder criteriaBuilder =
-            createCriteriaBuilder(DeSubjectRbmData, 'rbmdata', session)
+		new RepeatedEntriesCollectingTabularResult(
+				tabularResult: preliminaryResult,
+				collectBy: { it.antigenName },
+				resultItem: { collectedList ->
+					if (collectedList) {
+						new RbmRow(
+								annotationId: collectedList[0].annotationId,
+								antigenName: collectedList[0].antigenName,
+								unit: collectedList[0].unit,
+								uniprotName: collectedList*.uniprotName.join('/'),
+								assayIndexMap: collectedList[0].assayIndexMap,
+								data: collectedList[0].data
+						)
+					}
+				}
+		)
+	}
 
-        criteriaBuilder.with {
-            createAlias 'annotations', 'p', INNER_JOIN
+	List<String> searchAnnotation(String concept_code, String search_term, String search_property) {
+		if (!getSearchableAnnotationProperties().contains(search_property)) {
+			return []
+		}
 
-            projections {
-                property 'assay.id', 'assayId'
-                property 'p.id', 'annotationId'
-                property 'p.antigenName', 'antigenName'
-                property 'p.uniprotName', 'uniprotName'
-                property 'unit', 'unit'
-            }
+		DeRbmAnnotation.createCriteria().list {
+			ilike(search_property, search_term + '%')
+			'in'('gplId', DeSubjectSampleMapping.createCriteria().listDistinct {
+				eq('conceptCode', concept_code)
+				projections {
+					distinct('platform')
+				}
+			}.collect { it.id })
+			projections {
+				distinct(search_property)
+			}
+			order(search_property, 'ASC')
+		}
+	}
 
-            order 'p.id', 'asc'
-            order 'p.uniprotId', 'asc'
-            order 'assay.id', 'asc'
-            instance.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP)
-        }
-        criteriaBuilder
-    }
+	List<String> getSearchableAnnotationProperties() {
+		['antigenName', 'uniprotName', 'geneSymbol']
+	}
 
-    @Override
-    TabularResult transformResults(ScrollableResults results, List<AssayColumn> assays, Projection projection) {
-        Map assayIndexes = createAssayIndexMap assays
+	HighDimensionFilterType getHighDimensionFilterType() {
+		HighDimensionFilterType.SINGLE_NUMERIC
+	}
 
-        def preliminaryResult = new DefaultHighDimensionTabularResult(
-                rowsDimensionLabel: 'Antigenes',
-                columnsDimensionLabel: 'Sample codes',
-                indicesList: assays,
-                results: results,
-                //TODO Remove this. On real data missing assays are signaling about problems
-                allowMissingAssays: true,
-                assayIdFromRow: { it[0].assayId },
-                inSameGroup: {a, b -> a.annotationId == b.annotationId && a.uniprotId == b.uniprotId },
-                finalizeGroup: {List list ->
-                    def firstNonNullCell = list.find()
-                    new RbmRow(
-                            annotationId:  firstNonNullCell[0].annotationId,
-                            antigenName:   firstNonNullCell[0].antigenName,
-                            unit:          firstNonNullCell[0].unit,
-                            uniprotName:   firstNonNullCell[0].uniprotName,
-                            assayIndexMap: assayIndexes,
-                            data:          list.collect { projection.doWithResult it?.getAt(0) }
-                    )
-                }
-        )
-
-        new RepeatedEntriesCollectingTabularResult(
-                tabularResult: preliminaryResult,
-                collectBy: { it.antigenName },
-                resultItem: {collectedList ->
-                    if (collectedList) {
-                        new RbmRow(
-                                annotationId:   collectedList[0].annotationId,
-                                antigenName:    collectedList[0].antigenName,
-                                unit:           collectedList[0].unit,
-                                uniprotName:    collectedList*.uniprotName.join('/'),
-                                assayIndexMap:  collectedList[0].assayIndexMap,
-                                data:           collectedList[0].data
-                        )
-    }
-}
-        )
-    }
-
-    @Override
-    List<String> searchAnnotation(String concept_code, String search_term, String search_property) {
-        if (!getSearchableAnnotationProperties().contains(search_property))
-            return []
-
-        DeRbmAnnotation.createCriteria().list {
-            ilike(search_property, search_term + '%')
-            'in'('gplId', DeSubjectSampleMapping.createCriteria().listDistinct {
-                eq('conceptCode', concept_code)
-                projections {
-                    distinct('platform')
-                }
-            }.collect {it.id})
-            projections {
-                distinct(search_property)
-            }
-            order(search_property, 'ASC')
-        }
-    }
-
-    @Override
-    List<String> getSearchableAnnotationProperties() {
-        ['antigenName','uniprotName','geneSymbol']
-    }
-
-    @Override
-    HighDimensionFilterType getHighDimensionFilterType() {
-        HighDimensionFilterType.SINGLE_NUMERIC
-    }
-
-    @Override
-    List<String> getSearchableProjections() {
-        [Projection.LOG_INTENSITY_PROJECTION, Projection.DEFAULT_REAL_PROJECTION, Projection.ZSCORE_PROJECTION]
-    }
+	List<String> getSearchableProjections() {
+		[Projection.LOG_INTENSITY_PROJECTION, Projection.DEFAULT_REAL_PROJECTION, Projection.ZSCORE_PROJECTION]
+	}
 }

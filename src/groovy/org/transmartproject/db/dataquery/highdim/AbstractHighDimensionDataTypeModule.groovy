@@ -32,123 +32,113 @@ import javax.annotation.PostConstruct
 
 abstract class AbstractHighDimensionDataTypeModule implements HighDimensionDataTypeModule {
 
-    @Autowired
-    SessionFactory sessionFactory
+	@Autowired
+	SessionFactory sessionFactory
 
-    protected List<DataRetrievalParameterFactory> assayConstraintFactories
+	protected List<DataRetrievalParameterFactory> assayConstraintFactories
+	protected List<DataRetrievalParameterFactory> dataConstraintFactories
+	protected List<DataRetrievalParameterFactory> projectionFactories
 
-    protected List<DataRetrievalParameterFactory> dataConstraintFactories
+	@Autowired
+	HighDimensionResourceService highDimensionResourceService
 
-    protected List<DataRetrievalParameterFactory> projectionFactories
+	static Map<String, Class> typesMap(Class domainClass, List<String> fields,
+	                                   Map<String, String> translationMap = [:]) {
+		fields.collectEntries({
+			[(it): domainClass.metaClass.getMetaProperty(translationMap.get(it, it)).type]
+		}).asImmutable()
+	}
 
-    @Autowired
-    HighDimensionResourceService highDimensionResourceService
+	@PostConstruct
+	void init() {
+		highDimensionResourceService.registerHighDimensionDataTypeModule(
+				name, this.&createHighDimensionResource)
+	}
 
-    static Map<String, Class> typesMap(Class domainClass, List<String> fields,
-                                       Map<String, String> translationMap = [:]) {
-        fields.collectEntries({
-            [(it): domainClass.metaClass.getMetaProperty(translationMap.get(it, it)).type]
-        }).asImmutable()
-    }
+	HighDimensionDataTypeResource createHighDimensionResource(Map params) {
+		// params are unused; at least for now
+		new HighDimensionDataTypeResourceImpl(this)
+	}
 
-    @PostConstruct
-    void init() {
-        this.highDimensionResourceService.registerHighDimensionDataTypeModule(
-                name, this.&createHighDimensionResource)
-    }
+	@Lazy
+	volatile Set<String> supportedAssayConstraints = {
+		initializeFactories()
+		assayConstraintFactories.inject(new HashSet()) { Set<String> accum, DataRetrievalParameterFactory elem ->
+			accum.addAll elem.supportedNames
+			accum
+		}
+	}()
 
-    HighDimensionDataTypeResource createHighDimensionResource(Map params) {
-        /* params are unused; at least for now */
-        new HighDimensionDataTypeResourceImpl(this)
-    }
+	@Lazy
+	volatile Set<String> supportedDataConstraints = {
+		initializeFactories()
+		dataConstraintFactories.inject(new HashSet()) { Set<String> accum, DataRetrievalParameterFactory elem ->
+			accum.addAll elem.supportedNames
+			accum
+		}
+	}()
 
-    @Lazy volatile Set<String> supportedAssayConstraints = {
-        initializeFactories()
-        assayConstraintFactories.inject(new HashSet()) {
-                Set accum, DataRetrievalParameterFactory elem ->
-                    accum.addAll elem.supportedNames
-                    accum
-        }
-    }()
+	@Lazy
+	volatile Set<String> supportedProjections = {
+		initializeFactories()
+		projectionFactories.inject(new HashSet()) { Set<String> accum, DataRetrievalParameterFactory elem ->
+			accum.addAll elem.supportedNames
+			accum
+		}
+	}()
 
-    @Lazy volatile Set<String> supportedDataConstraints = {
-        initializeFactories()
-        dataConstraintFactories.inject(new HashSet()) {
-                Set accum, DataRetrievalParameterFactory elem ->
-                    accum.addAll elem.supportedNames
-                    accum
-        }
-    }()
+	protected synchronized final initializeFactories() {
+		if (assayConstraintFactories != null) {
+			return // already initialized
+		}
 
-    @Lazy volatile Set<String> supportedProjections = {
-        initializeFactories()
-        projectionFactories.inject(new HashSet()) {
-                Set accum, DataRetrievalParameterFactory elem ->
-                    accum.addAll elem.supportedNames
-                    accum
-        }
-    }()
+		assayConstraintFactories = createAssayConstraintFactories()
+		dataConstraintFactories = createDataConstraintFactories()
+		projectionFactories = createProjectionFactories()
+	}
 
-    final synchronized protected initializeFactories() {
-        if (assayConstraintFactories != null) {
-            return // already initialized
-        }
+	protected abstract List<DataRetrievalParameterFactory> createAssayConstraintFactories()
 
-        assayConstraintFactories = createAssayConstraintFactories()
-        dataConstraintFactories  = createDataConstraintFactories()
-        projectionFactories      = createProjectionFactories()
-    }
+	protected abstract List<DataRetrievalParameterFactory> createDataConstraintFactories()
 
-    abstract protected List<DataRetrievalParameterFactory> createAssayConstraintFactories()
+	protected abstract List<DataRetrievalParameterFactory> createProjectionFactories()
 
-    abstract protected List<DataRetrievalParameterFactory> createDataConstraintFactories()
+	AssayConstraint createAssayConstraint(Map<String, Object> params, String name) {
+		initializeFactories()
+		for (factory in assayConstraintFactories) {
+			if (factory.supports(name)) {
+				return factory.createFromParameters(name, params, this.&createAssayConstraint)
+			}
+		}
 
-    abstract protected List<DataRetrievalParameterFactory> createProjectionFactories()
+		throw new UnsupportedByDataTypeException("The data type ${name} " +
+				"does not support the assay constraint $name")
+	}
 
-    @Override
-    AssayConstraint createAssayConstraint(Map<String, Object> params, String name) {
-        initializeFactories()
-        for (factory in assayConstraintFactories) {
-            if (factory.supports(name)) {
-                return factory.createFromParameters(
-                        name, params, this.&createAssayConstraint)
-            }
-        }
+	DataConstraint createDataConstraint(Map<String, Object> params, String name) {
+		initializeFactories()
+		for (factory in dataConstraintFactories) {
+			if (factory.supports(name)) {
+				return factory.createFromParameters(name, params, this.&createDataConstraint)
+			}
+		}
 
-        throw new UnsupportedByDataTypeException("The data type ${this.name} " +
-                "does not support the assay constraint $name")
-    }
+		throw new UnsupportedByDataTypeException("The data type $name does not support the data constraint $name")
+	}
 
-    @Override
-    DataConstraint createDataConstraint(Map<String, Object> params, String name) {
-        initializeFactories()
-        for (factory in dataConstraintFactories) {
-            if (factory.supports(name)) {
-                return factory.createFromParameters(
-                        name, params, this.&createDataConstraint)
-            }
-        }
+	Projection createProjection(Map<String, Object> params, String name) {
+		initializeFactories()
+		for (factory in projectionFactories) {
+			if (factory.supports(name)) {
+				return factory.createFromParameters(name, params, this.&createProjection)
+			}
+		}
 
-        throw new UnsupportedByDataTypeException("The data type ${this.name} " +
-                "does not support the data constraint $name")
-    }
+		throw new UnsupportedByDataTypeException("The data type $name does not support the projection $name")
+	}
 
-    @Override
-    Projection createProjection(Map<String, Object> params, String name) {
-        initializeFactories()
-        for (factory in projectionFactories) {
-            if (factory.supports(name)) {
-                return factory.createFromParameters(
-                        name, params, this.&createProjection)
-            }
-        }
-
-        throw new UnsupportedByDataTypeException("The data type ${this.name} " +
-                "does not support the projection $name")
-    }
-
-    final protected Map createAssayIndexMap(List assays) {
-        int i = 0
-        assays.collectEntries { [ it, i++ ] }
-    }
+	protected final Map createAssayIndexMap(List assays) {
+		int i = 0
+		assays.collectEntries { [it, i++] }
+	}
 }

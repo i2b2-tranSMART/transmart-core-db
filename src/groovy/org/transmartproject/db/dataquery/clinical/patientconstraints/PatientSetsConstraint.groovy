@@ -6,22 +6,19 @@ import org.transmartproject.db.querytool.QtPatientSetCollection
 
 class PatientSetsConstraint implements PatientConstraint {
 
-    private final Iterable<QueryResult> queryResults
+	private final Iterable<QueryResult> queryResults
 
-    PatientSetsConstraint(final Iterable<QueryResult> queryResults) {
-        this.queryResults = queryResults
+	PatientSetsConstraint(Iterable<QueryResult> results) {
+		queryResults = results
+		assert queryResults
+	}
 
-        assert this.queryResults
-    }
-
-    @Override
-    void addToCriteria(Criteria criteria) {
-        criteria.in 'id', QtPatientSetCollection.where {
-            projections {
-                property 'patient.id'
-            }
-            'in'('resultInstance.id', this.queryResults*.id)
-        }
-    }
-
+	void addToCriteria(Criteria criteria) {
+		criteria.in 'id', QtPatientSetCollection.where {
+			projections {
+				property 'patient.id'
+			}
+			'in' 'resultInstance.id', queryResults*.id
+		}
+	}
 }

@@ -1,6 +1,7 @@
 package org.transmartproject.db.dataquery.highdim.tworegion
 
 import com.google.common.collect.AbstractIterator
+import groovy.transform.CompileStatic
 import org.transmartproject.core.dataquery.DataRow
 import org.transmartproject.core.dataquery.highdim.AssayColumn
 import org.transmartproject.core.dataquery.highdim.tworegion.Junction
@@ -8,57 +9,54 @@ import org.transmartproject.core.dataquery.highdim.tworegion.Junction
 /**
  * Implements a (sparse) row with exactly one assay with data (a junction).
  */
+@CompileStatic
 class JunctionRow implements DataRow<AssayColumn, Junction> {
 
-    private final AssayColumn assay
-    private final int assayIndex
-    private final int numAssays
-    private final DeTwoRegionJunction junction
+	private final AssayColumn assay
+	private final int assayIndex
+	private final int numAssays
+	private final DeTwoRegionJunction junction
 
-    @Override
-    String getLabel() {
-        "Junction at $junction.upChromosome[$junction.upPos] - " +
-                "$junction.downChromosome[$junction.downPos] for $assay.label"
-    }
+	JunctionRow(AssayColumn assay, int assayIndex, int numAssays, DeTwoRegionJunction r) {
+		this.assay = assay
+		this.assayIndex = assayIndex
+		this.numAssays = numAssays
+		junction = r
+	}
 
-    @Override
-    Junction getAt(int index) {
-        if (index == assayIndex) {
-            junction
-        } // else null
-    }
+	String getLabel() {
+		"Junction at $junction.upChromosome[$junction.upPos] - " +
+				"$junction.downChromosome[$junction.downPos] for $assay.label"
+	}
 
-    @Override
-    Junction getAt(AssayColumn assay) {
-        if (assay == this.assay) {
-            junction
-        } // else null
-    }
+	Junction getAt(int index) {
+		if (index == assayIndex) {
+			junction
+		}
+	}
 
-    public JunctionRow(AssayColumn assay, int assayIndex, int numAssays, DeTwoRegionJunction r) {
-        this.assay = assay
-        this.assayIndex = assayIndex
-        this.numAssays = numAssays
-        this.junction = r
-    }
+	Junction getAt(AssayColumn assay) {
+		if (assay == this.assay) {
+			junction
+		}
+	}
 
-    @Override
-    Iterator<Junction> iterator() {
-        new AbstractIterator<Junction>() {
-            int i = 0
+	Iterator<Junction> iterator() {
+		new AbstractIterator<Junction>() {
+			int i = 0
 
-            @Override
-            protected Junction computeNext() {
-                def res
-                if (i == assayIndex) {
-                    res = junction
-                } else if (i >= numAssays) {
-                    endOfData()
-                }
-                i++
+			protected Junction computeNext() {
+				def res
+				if (i == assayIndex) {
+					res = junction
+				}
+				else if (i >= numAssays) {
+					endOfData()
+				}
+				i++
 
-                res
-            }
-        }
-    }
+				res
+			}
+		}
+	}
 }

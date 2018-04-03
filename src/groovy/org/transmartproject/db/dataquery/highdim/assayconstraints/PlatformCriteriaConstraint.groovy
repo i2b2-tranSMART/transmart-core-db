@@ -25,13 +25,12 @@ import org.grails.datastore.mapping.query.api.Criteria
 @Canonical
 class PlatformCriteriaConstraint implements AssayCriteriaConstraint {
 
-    Collection<String> gplIds
+	Collection<String> gplIds
 
-    @Override
-    void addToCriteria(Criteria criteria) {
-        /** @see org.transmartproject.db.dataquery.highdim.DeSubjectSampleMapping */
-        if (gplIds) {
-            criteria.in 'platform.id', gplIds
-        }
-    }
+	void addToCriteria(Criteria criteria) {
+		/** @see org.transmartproject.db.dataquery.highdim.DeSubjectSampleMapping */
+		if (gplIds) {
+			criteria.in 'platform.id', gplIds
+		}
+	}
 }

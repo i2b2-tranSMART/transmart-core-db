@@ -47,7 +47,6 @@ import org.transmartproject.db.dataquery.highdim.parameterproducers.MapBasedPara
 import org.transmartproject.db.dataquery.highdim.parameterproducers.SimpleAnnotationConstraintFactory
 import org.transmartproject.db.dataquery.highdim.parameterproducers.SimpleRealProjectionsFactory
 
-import static org.hibernate.sql.JoinFragment.INNER_JOIN
 import static org.transmartproject.db.util.GormWorkarounds.createCriteriaBuilder
 
 /**
@@ -55,197 +54,173 @@ import static org.transmartproject.db.util.GormWorkarounds.createCriteriaBuilder
  */
 class RnaSeqModule extends AbstractHighDimensionDataTypeModule {
 
-    static final String RNASEQ_VALUES_PROJECTION = 'rnaseq_values'
+	static final String RNASEQ_VALUES_PROJECTION = 'rnaseq_values'
 
-    final List<String> platformMarkerTypes = ['RNASEQ_RCNT']
+	final List<String> platformMarkerTypes = ['RNASEQ_RCNT']
+	final String name = 'rnaseq'
+	final String description = "Messenger RNA data (Sequencing)"
+	final Map<String, Class> dataProperties = typesMap(DeSubjectRnaseqData,
+			['readcount', 'normalizedReadcount', 'logNormalizedReadcount', 'zscore'])
+	final Map<String, Class> rowProperties = typesMap(RegionRowImpl,
+			['id', 'name', 'cytoband', 'chromosome', 'start', 'end', 'numberOfProbes', 'bioMarker'])
 
-    final String name = 'rnaseq'
+	@Autowired
+	DataRetrievalParameterFactory standardAssayConstraintFactory
+	@Autowired
+	DataRetrievalParameterFactory standardDataConstraintFactory
+	@Autowired
+	ChromosomeSegmentConstraintFactory chromosomeSegmentConstraintFactory
+	@Autowired
+	CorrelationTypesRegistry correlationTypesRegistry
 
-    final String description = "Messenger RNA data (Sequencing)"
+	HighDimensionDataTypeResource createHighDimensionResource(Map params) {
+		/* return instead subclass of HighDimensionDataTypeResourceImpl,
+		 * because we add a method, retrieveChromosomalSegments() */
+		new AcghDataTypeResource(this)
+	}
 
-    final Map<String, Class> dataProperties = typesMap(DeSubjectRnaseqData,
-            ['readcount', 'normalizedReadcount', 'logNormalizedReadcount', 'zscore'])
+	protected List<DataRetrievalParameterFactory> createAssayConstraintFactories() {
+		[standardAssayConstraintFactory]
+	}
 
-    final Map<String, Class> rowProperties = typesMap(RegionRowImpl,
-        ['id', 'name', 'cytoband', 'chromosome', 'start', 'end', 'numberOfProbes', 'bioMarker'])
+	protected List<DataRetrievalParameterFactory> createDataConstraintFactories() {
+		[standardDataConstraintFactory,
+		 chromosomeSegmentConstraintFactory,
+		 new SimpleAnnotationConstraintFactory(field: 'region', annotationClass: DeChromosomalRegion.class),
+		 new SearchKeywordDataConstraintFactory(correlationTypesRegistry, 'GENE', 'region', 'geneId')]
+	}
 
-    @Autowired
-    DataRetrievalParameterFactory standardAssayConstraintFactory
+	protected List<DataRetrievalParameterFactory> createProjectionFactories() {
+		[new MapBasedParameterFactory(
+				(RNASEQ_VALUES_PROJECTION): { Map<String, Object> params ->
+					if (!params.isEmpty()) {
+						throw new InvalidArgumentsException('Expected no parameters here')
+					}
+					new RnaSeqValuesProjection()
+				}),
+		 new SimpleRealProjectionsFactory(
+				 (Projection.LOG_INTENSITY_PROJECTION): 'logNormalizedReadcount',
+				 (Projection.LOG_NORMALIZED_READ_COUNT_PROJECTION): 'logNormalizedReadcount',  // alias that is more descriptive
+				 (Projection.DEFAULT_REAL_PROJECTION): 'normalizedReadcount',
+				 (Projection.NORMALIZED_READ_COUNT_PROJECTION): 'normalizedReadcount',                    // alias that is more descriptive
+				 (Projection.ZSCORE_PROJECTION): 'zscore'),
+		 new AllDataProjectionFactory(dataProperties, rowProperties)]
+	}
 
-    @Autowired
-    DataRetrievalParameterFactory standardDataConstraintFactory
+	HibernateCriteriaBuilder prepareDataQuery(Projection projection, SessionImplementor session) {
+		HibernateCriteriaBuilder criteriaBuilder = createCriteriaBuilder(
+				DeSubjectRnaseqData, 'rnaseqdata', session)
 
-    @Autowired
-    ChromosomeSegmentConstraintFactory chromosomeSegmentConstraintFactory
+		criteriaBuilder.with {
+			createAlias 'jRegion', 'region', INNER_JOIN
+			createAlias 'jRegion.platform', 'platform', INNER_JOIN
 
-    @Autowired
-    CorrelationTypesRegistry correlationTypesRegistry
+			projections {
+				property 'rnaseqdata.assay.id', 'assayId'
+				property 'rnaseqdata.readcount', 'readcount'
+				property 'rnaseqdata.normalizedReadcount', 'normalizedReadcount'
+				property 'rnaseqdata.logNormalizedReadcount', 'logNormalizedReadcount'
+				property 'rnaseqdata.zscore', 'zscore'
 
-    @Override
-    HighDimensionDataTypeResource createHighDimensionResource(Map params) {
-        /* return instead subclass of HighDimensionDataTypeResourceImpl,
-         * because we add a method, retrieveChromosomalSegments() */
-        new AcghDataTypeResource(this)
-    }
+				property 'region.id', 'id'
+				property 'region.name', 'name'
+				property 'region.cytoband', 'cytoband'
+				property 'region.chromosome', 'chromosome'
+				property 'region.start', 'start'
+				property 'region.end', 'end'
+				property 'region.numberOfProbes', 'numberOfProbes'
+				property 'region.geneSymbol', 'geneSymbol'
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createAssayConstraintFactories() {
-        [ standardAssayConstraintFactory ]
-    }
+				property 'platform.id', 'platformId'
+				property 'platform.title', 'platformTitle'
+				property 'platform.organism', 'platformOrganism'
+				property 'platform.annotationDate', 'platformAnnotationDate'
+				property 'platform.markerType', 'platformMarkerType'
+				property 'platform.genomeReleaseId', 'platformGenomeReleaseId'
+			}
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createDataConstraintFactories() {
-        [
-                standardDataConstraintFactory,
-                chromosomeSegmentConstraintFactory,
-                new SimpleAnnotationConstraintFactory(field: 'region', annotationClass: DeChromosomalRegion.class),
-                new SearchKeywordDataConstraintFactory(correlationTypesRegistry,
-                        'GENE', 'region', 'geneId')
-        ]
-    }
+			order 'region.id', 'asc'
+			order 'assay.id', 'asc' // important
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createProjectionFactories() {
-        [
-                new MapBasedParameterFactory(
-                        (RNASEQ_VALUES_PROJECTION): { Map<String, Object> params ->
-                            if (!params.isEmpty()) {
-                                throw new InvalidArgumentsException('Expected no parameters here')
-                            }
-                            new RnaSeqValuesProjection()
-                        }
-                ),
-                new SimpleRealProjectionsFactory(
-                        (Projection.LOG_INTENSITY_PROJECTION): 'logNormalizedReadcount',
-                        (Projection.LOG_NORMALIZED_READ_COUNT_PROJECTION): 'logNormalizedReadcount',  // alias that is more descriptive
-                        (Projection.DEFAULT_REAL_PROJECTION):  'normalizedReadcount',
-                        (Projection.NORMALIZED_READ_COUNT_PROJECTION): 'normalizedReadcount',                    // alias that is more descriptive
-                        (Projection.ZSCORE_PROJECTION):        'zscore'
-                ),
-                new AllDataProjectionFactory(dataProperties, rowProperties)
-        ]
-    }
+			// because we're using this transformer, every column has to have an alias
+			instance.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP)
+		}
 
-    @Override
-    HibernateCriteriaBuilder prepareDataQuery(Projection projection, SessionImplementor session) {
-        HibernateCriteriaBuilder criteriaBuilder =
-            createCriteriaBuilder(DeSubjectRnaseqData, 'rnaseqdata', session)
+		criteriaBuilder
+	}
 
-        criteriaBuilder.with {
-            createAlias 'jRegion', 'region', INNER_JOIN
-            createAlias 'jRegion.platform', 'platform', INNER_JOIN
+	TabularResult transformResults(ScrollableResults results, List<AssayColumn> assays, Projection projection) {
+		/* assumption here is the assays in the passed in list are in the same
+		 * order as the assays in the result set */
+		Map assayIndexMap = createAssayIndexMap(assays)
 
-            projections {
-                property 'rnaseqdata.assay.id',               'assayId'
-                property 'rnaseqdata.readcount',              'readcount'
-                property 'rnaseqdata.normalizedReadcount',    'normalizedReadcount'
-                property 'rnaseqdata.logNormalizedReadcount', 'logNormalizedReadcount'
-                property 'rnaseqdata.zscore',                 'zscore'
+		new DefaultHighDimensionTabularResult(
+				rowsDimensionLabel: 'Regions',
+				columnsDimensionLabel: 'Sample codes',
+				indicesList: assays,
+				results: results,
+				allowMissingAssays: true,
+				assayIdFromRow: { it[0].assayId },
+				inSameGroup: { a, b -> a.id == b.id }, // same region id //
+				finalizeGroup: { List list ->
+					if (list.size() != assays.size()) {
+						throw new UnexpectedResultException(
+								"Expected group to be of size ${assays.size()}; got ${list.size()} objects")
+					}
+					def firstNonNullCell = list.find()[0]
+					new RegionRowImpl(
+							id: firstNonNullCell.id,
+							name: firstNonNullCell.name,
+							cytoband: firstNonNullCell.cytoband,
+							chromosome: firstNonNullCell.chromosome,
+							start: firstNonNullCell.start,
+							end: firstNonNullCell.end,
+							numberOfProbes: firstNonNullCell.numberOfProbes,
+							bioMarker: firstNonNullCell.geneSymbol,
+							platform: new PlatformImpl(
+									id: firstNonNullCell.platformId,
+									title: firstNonNullCell.platformTitle,
+									organism: firstNonNullCell.platformOrganism,
+									//It converts timestamp to date
+									annotationDate: firstNonNullCell.platformAnnotationDate ?
+											new Date(firstNonNullCell.platformAnnotationDate.getTime())
+											: null,
+									markerType: firstNonNullCell.platformMarkerType,
+									genomeReleaseId: firstNonNullCell.platformGenomeReleaseId
+							),
+							assayIndexMap: assayIndexMap,
+							data: list.collect { projection.doWithResult it?.getAt(0) }
+					)
+				}
+		)
+	}
 
-                property 'region.id',                         'id'
-                property 'region.name',                       'name'
-                property 'region.cytoband',                   'cytoband'
-                property 'region.chromosome',                 'chromosome'
-                property 'region.start',                      'start'
-                property 'region.end',                        'end'
-                property 'region.numberOfProbes',             'numberOfProbes'
-                property 'region.geneSymbol',                 'geneSymbol'
+	List<String> searchAnnotation(String concept_code, String search_term, String search_property) {
+		if (!getSearchableAnnotationProperties().contains(search_property)) {
+			return []
+		}
 
-                property 'platform.id', 'platformId'
-                property 'platform.title', 'platformTitle'
-                property 'platform.organism', 'platformOrganism'
-                property 'platform.annotationDate', 'platformAnnotationDate'
-                property 'platform.markerType', 'platformMarkerType'
-                property 'platform.genomeReleaseId', 'platformGenomeReleaseId'
-            }
+		DeChromosomalRegion.createCriteria().list {
+			eq('gplId', DeSubjectSampleMapping.createCriteria().get {
+				eq('conceptCode', concept_code)
+				projections { distinct 'platform.id' }
+			})
+			ilike(search_property, search_term + '%')
+			projections { distinct(search_property) }
+			order(search_property, 'ASC')
+			maxResults(100)
+		}
+	}
 
-            order 'region.id', 'asc'
-            order 'assay.id',  'asc' // important
+	List<String> getSearchableAnnotationProperties() {
+		['geneSymbol', 'cytoband', 'name']
+	}
 
-            // because we're using this transformer, every column has to have an alias
-            instance.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP)
-        }
+	HighDimensionFilterType getHighDimensionFilterType() {
+		HighDimensionFilterType.SINGLE_NUMERIC
+	}
 
-        criteriaBuilder
-    }
-
-    @Override
-    TabularResult transformResults(ScrollableResults results,
-                                   List<AssayColumn> assays,
-                                   Projection projection) {
-        /* assumption here is the assays in the passed in list are in the same
-         * order as the assays in the result set */
-        Map assayIndexMap = createAssayIndexMap assays
-
-        new DefaultHighDimensionTabularResult(
-                rowsDimensionLabel:    'Regions',
-                columnsDimensionLabel: 'Sample codes',
-                indicesList:           assays,
-                results:               results,
-                allowMissingAssays:    true,
-                assayIdFromRow:        { it[0].assayId },
-                inSameGroup:           { a, b -> a.id == b.id }, // same region id //
-                finalizeGroup:         { List list ->
-                        if (list.size() != assays.size()) {
-                            throw new UnexpectedResultException(
-                                    "Expected group to be of size ${assays.size()}; got ${list.size()} objects")
-                        }
-                        def firstNonNullCell = list.find()[0]
-                        new RegionRowImpl(
-                                id:             firstNonNullCell.id,
-                                name:           firstNonNullCell.name,
-                                cytoband:       firstNonNullCell.cytoband,
-                                chromosome:     firstNonNullCell.chromosome,
-                                start:          firstNonNullCell.start,
-                                end:            firstNonNullCell.end,
-                                numberOfProbes: firstNonNullCell.numberOfProbes,
-                                bioMarker:      firstNonNullCell.geneSymbol,
-                                platform: new PlatformImpl(
-                                        id:              firstNonNullCell.platformId,
-                                        title:           firstNonNullCell.platformTitle,
-                                        organism:        firstNonNullCell.platformOrganism,
-                                        //It converts timestamp to date
-                                        annotationDate:  firstNonNullCell.platformAnnotationDate ?
-                                                new Date(firstNonNullCell.platformAnnotationDate.getTime())
-                                                : null,
-                                        markerType:      firstNonNullCell.platformMarkerType,
-                                        genomeReleaseId: firstNonNullCell.platformGenomeReleaseId
-                                ),
-                                assayIndexMap:  assayIndexMap,
-                                data:           list.collect { projection.doWithResult it?.getAt(0) }
-                        )
-                }
-        )
-    }
-
-    @Override
-    List<String> searchAnnotation(String concept_code, String search_term, String search_property) {
-        if (!getSearchableAnnotationProperties().contains(search_property))
-            return []
-        DeChromosomalRegion.createCriteria().list {
-            eq('gplId', DeSubjectSampleMapping.createCriteria().get {
-                eq('conceptCode', concept_code)
-                projections {distinct 'platform.id'}
-            })
-            ilike(search_property, search_term + '%')
-            projections { distinct(search_property) }
-            order(search_property, 'ASC')
-            maxResults(100)
-        }
-    }
-
-    @Override
-    List<String> getSearchableAnnotationProperties() {
-        ['geneSymbol', 'cytoband', 'name']
-    }
-
-    @Override
-    HighDimensionFilterType getHighDimensionFilterType() {
-        HighDimensionFilterType.SINGLE_NUMERIC
-    }
-
-    @Override
-    List<String> getSearchableProjections() {
-        [Projection.LOG_NORMALIZED_READ_COUNT_PROJECTION, Projection.NORMALIZED_READ_COUNT_PROJECTION, Projection.ZSCORE_PROJECTION]
-    }
+	List<String> getSearchableProjections() {
+		[Projection.LOG_NORMALIZED_READ_COUNT_PROJECTION, Projection.NORMALIZED_READ_COUNT_PROJECTION, Projection.ZSCORE_PROJECTION]
+	}
 }

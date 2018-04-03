@@ -18,6 +18,7 @@
  */
 
 package org.transmartproject.db.dataquery.highdim.metabolite
+
 import grails.orm.HibernateCriteriaBuilder
 import org.hibernate.ScrollableResults
 import org.hibernate.engine.SessionImplementor
@@ -40,155 +41,135 @@ import org.transmartproject.db.dataquery.highdim.parameterproducers.SimpleRealPr
 
 import javax.annotation.PostConstruct
 
-import static org.hibernate.sql.JoinFragment.INNER_JOIN
 import static org.transmartproject.db.util.GormWorkarounds.createCriteriaBuilder
 
 class MetaboliteModule extends AbstractHighDimensionDataTypeModule {
 
-    final String name = 'metabolite'
+	final String name = 'metabolite'
+	final List<String> platformMarkerTypes = ['METABOLOMICS']
+	final String description = 'Metabolomics data (Mass Spec)'
+	final Map<String, Class> dataProperties = typesMap(DeSubjectMetabolomicsData,
+			['rawIntensity', 'logIntensity', 'zscore'])
+	final Map<String, Class> rowProperties = typesMap(MetaboliteDataRow,
+			['hmdbId', 'biochemicalName'])
 
-    final List<String> platformMarkerTypes = ['METABOLOMICS']
+	@Autowired DataRetrievalParameterFactory standardAssayConstraintFactory
+	@Autowired DataRetrievalParameterFactory standardDataConstraintFactory
+	@Autowired CorrelationTypesRegistry correlationTypesRegistry
 
-    final String description = 'Metabolomics data (Mass Spec)'
+	@PostConstruct
+	void registerCorrelations() {
+		correlationTypesRegistry.registerConstraint 'METABOLITE', 'metabolites'
+		correlationTypesRegistry.registerConstraint 'METABOLITE_SUBPATHWAY', 'metabolite_subpathways'
+		correlationTypesRegistry.registerConstraint 'METABOLITE_SUPERPATHWAY', 'metabolite_superpathways'
 
-    final Map<String, Class> dataProperties = typesMap(DeSubjectMetabolomicsData,
-            ['rawIntensity', 'logIntensity', 'zscore'])
+		correlationTypesRegistry.registerCorrelation new CorrelationType(
+				name: 'METABOLITE',
+				sourceType: 'METABOLITE',
+				targetType: 'METABOLITE')
 
-    final Map<String, Class> rowProperties = typesMap(MetaboliteDataRow,
-            ['hmdbId', 'biochemicalName'])
+		correlationTypesRegistry.registerCorrelation new CorrelationType(
+				name: 'SUPERPATHWAY TO METABOLITE',
+				sourceType: 'METABOLITE_SUPERPATHWAY',
+				targetType: 'METABOLITE',
+				correlationTable: 'BIOMART.BIO_METAB_SUPERPATHWAY_VIEW',
+				leftSideColumn: 'SUPERPATHWAY_ID')
 
-    @Autowired
-    DataRetrievalParameterFactory standardAssayConstraintFactory
+		correlationTypesRegistry.registerCorrelation new CorrelationType(
+				name: 'SUBPATHWAY TO METABOLITE',
+				sourceType: 'METABOLITE_SUBPATHWAY',
+				targetType: 'METABOLITE',
+				correlationTable: 'BIOMART.BIO_METAB_SUBPATHWAY_VIEW',
+				leftSideColumn: 'SUBPATHWAY_ID')
+	}
 
-    @Autowired
-    DataRetrievalParameterFactory standardDataConstraintFactory
+	protected List<DataRetrievalParameterFactory> createAssayConstraintFactories() {
+		[standardAssayConstraintFactory]
+	}
 
-    @Autowired
-    CorrelationTypesRegistry correlationTypesRegistry
+	protected List<DataRetrievalParameterFactory> createDataConstraintFactories() {
+		[standardDataConstraintFactory,
+		 new SimpleAnnotationConstraintFactory(field: 'annotation', annotationClass: DeMetaboliteAnnotation.class),
+		 new SearchKeywordDataConstraintFactory(correlationTypesRegistry,
+				 'METABOLITE', 'a', 'hmdbId')]
+	}
 
-    @PostConstruct
-    void registerCorrelations() {
-        correlationTypesRegistry.registerConstraint 'METABOLITE',              'metabolites'
-        correlationTypesRegistry.registerConstraint 'METABOLITE_SUBPATHWAY',   'metabolite_subpathways'
-        correlationTypesRegistry.registerConstraint 'METABOLITE_SUPERPATHWAY', 'metabolite_superpathways'
+	protected List<DataRetrievalParameterFactory> createProjectionFactories() {
+		[new SimpleRealProjectionsFactory(
+				(Projection.LOG_INTENSITY_PROJECTION): 'logIntensity',
+				(Projection.DEFAULT_REAL_PROJECTION): 'rawIntensity',
+				(Projection.ZSCORE_PROJECTION): 'zscore'),
+		 new AllDataProjectionFactory(dataProperties, rowProperties)]
+	}
 
-        correlationTypesRegistry.registerCorrelation new CorrelationType(
-                name:       'METABOLITE',
-                sourceType: 'METABOLITE',
-                targetType: 'METABOLITE')
+	HibernateCriteriaBuilder prepareDataQuery(Projection projection, SessionImplementor session) {
+		HibernateCriteriaBuilder criteriaBuilder = createCriteriaBuilder(
+				DeSubjectMetabolomicsData, 'metabolitedata', session)
 
-        correlationTypesRegistry.registerCorrelation new CorrelationType(
-                name:             'SUPERPATHWAY TO METABOLITE',
-                sourceType:       'METABOLITE_SUPERPATHWAY',
-                targetType:       'METABOLITE',
-                correlationTable: 'BIOMART.BIO_METAB_SUPERPATHWAY_VIEW',
-                leftSideColumn:   'SUPERPATHWAY_ID')
+		criteriaBuilder.with {
+			createAlias 'jAnnotation', 'a', INNER_JOIN
 
-        correlationTypesRegistry.registerCorrelation new CorrelationType(
-                name:             'SUBPATHWAY TO METABOLITE',
-                sourceType:       'METABOLITE_SUBPATHWAY',
-                targetType:       'METABOLITE',
-                correlationTable: 'BIOMART.BIO_METAB_SUBPATHWAY_VIEW',
-                leftSideColumn:   'SUBPATHWAY_ID')
-    }
+			projections {
+				property 'assay.id', 'assayId'
+				property 'a.id', 'annotationId'
+				property 'a.hmdbId', 'hmdbId'
+				property 'a.biochemicalName', 'biochemicalName'
+			}
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createAssayConstraintFactories() {
-        [ standardAssayConstraintFactory ]
-    }
+			order 'a.id', 'asc'
+			order 'assay.id', 'asc'
+			instance.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP)
+		}
+		criteriaBuilder
+	}
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createDataConstraintFactories() {
-        [ standardDataConstraintFactory,
-                new SimpleAnnotationConstraintFactory(field: 'annotation', annotationClass: DeMetaboliteAnnotation.class),
-                new SearchKeywordDataConstraintFactory(correlationTypesRegistry,
-                        'METABOLITE', 'a', 'hmdbId')]
-    }
+	TabularResult transformResults(ScrollableResults results, List<AssayColumn> assays, Projection projection) {
+		Map assayIndexes = createAssayIndexMap(assays)
 
-    @Override
-    protected List<DataRetrievalParameterFactory> createProjectionFactories() {
-        [ new SimpleRealProjectionsFactory(
-                (Projection.LOG_INTENSITY_PROJECTION): 'logIntensity',
-                (Projection.DEFAULT_REAL_PROJECTION): 'rawIntensity',
-                (Projection.ZSCORE_PROJECTION):       'zscore'),
-        new AllDataProjectionFactory(dataProperties, rowProperties)]
-    }
+		new DefaultHighDimensionTabularResult(
+				rowsDimensionLabel: 'Metabolites',
+				columnsDimensionLabel: 'Sample codes',
+				indicesList: assays,
+				results: results,
+				allowMissingAssays: true,
+				assayIdFromRow: { it[0].assayId },
+				inSameGroup: { a, b -> a.annotationId == b.annotationId },
+				finalizeGroup: { List list -> /* list of arrays with one element: a map */
+					def firstNonNullCell = list.find()
+					new MetaboliteDataRow(
+							biochemicalName: firstNonNullCell[0].biochemicalName,
+							hmdbId: firstNonNullCell[0].hmdbId,
+							assayIndexMap: assayIndexes,
+							data: list.collect { projection.doWithResult it?.getAt(0) }
+					)
+				}
+		)
+	}
 
-    @Override
-    HibernateCriteriaBuilder prepareDataQuery(Projection projection,
-                                              SessionImplementor session) {
-        HibernateCriteriaBuilder criteriaBuilder =
-            createCriteriaBuilder(DeSubjectMetabolomicsData, 'metabolitedata', session)
+	List<String> searchAnnotation(String concept_code, String search_term, String search_property) {
+		if (!getSearchableAnnotationProperties().contains(search_property)) {
+			return []
+		}
 
-        criteriaBuilder.with {
-            createAlias 'jAnnotation', 'a', INNER_JOIN
+		DeMetaboliteAnnotation.createCriteria().list {
+			dataRows {
+				'in'('assay', DeSubjectSampleMapping.createCriteria().listDistinct { eq('conceptCode', concept_code) })
+			}
+			ilike(search_property, search_term + '%')
+			projections { distinct(search_property) }
+			order(search_property, 'ASC')
+		}
+	}
 
-            projections {
-                property 'assay.id',          'assayId'
-                property 'a.id',              'annotationId'
-                property 'a.hmdbId',          'hmdbId'
-                property 'a.biochemicalName', 'biochemicalName'
-            }
+	List<String> getSearchableAnnotationProperties() {
+		['hmdbId', 'biochemicalName']
+	}
 
-            order 'a.id',     'asc'
-            order 'assay.id', 'asc'
-            instance.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP)
-        }
-        criteriaBuilder
-    }
+	HighDimensionFilterType getHighDimensionFilterType() {
+		HighDimensionFilterType.SINGLE_NUMERIC
+	}
 
-    @Override
-    TabularResult transformResults(ScrollableResults results,
-                                   List<AssayColumn> assays,
-                                   Projection projection) {
-        Map assayIndexes = createAssayIndexMap assays
-
-        new DefaultHighDimensionTabularResult(
-                rowsDimensionLabel: 'Metabolites',
-                columnsDimensionLabel: 'Sample codes',
-                indicesList: assays,
-                results: results,
-                allowMissingAssays: true,
-                assayIdFromRow: { it[0].assayId },
-                inSameGroup: { a, b -> a.annotationId == b.annotationId },
-                finalizeGroup: { List list -> /* list of arrays with one element: a map */
-                    def firstNonNullCell = list.find()
-                    new MetaboliteDataRow(
-                            biochemicalName: firstNonNullCell[0].biochemicalName,
-                            hmdbId: firstNonNullCell[0].hmdbId,
-                            assayIndexMap: assayIndexes,
-                            data: list.collect { projection.doWithResult it?.getAt(0) }
-                    )
-                }
-        )
-    }
-
-    @Override
-    List<String> searchAnnotation(String concept_code, String search_term, String search_property) {
-        if (!getSearchableAnnotationProperties().contains(search_property))
-            return []
-        DeMetaboliteAnnotation.createCriteria().list {
-            dataRows {
-                'in'('assay', DeSubjectSampleMapping.createCriteria().listDistinct {eq('conceptCode', concept_code)} )
-            }
-            ilike(search_property, search_term + '%')
-            projections { distinct(search_property) }
-            order(search_property, 'ASC')
-        }
-    }
-
-    @Override
-    List<String> getSearchableAnnotationProperties() {
-        ['hmdbId', 'biochemicalName']
-    }
-
-    @Override
-    HighDimensionFilterType getHighDimensionFilterType() {
-        HighDimensionFilterType.SINGLE_NUMERIC
-    }
-
-    @Override
-    List<String> getSearchableProjections() {
-        [Projection.LOG_INTENSITY_PROJECTION, Projection.DEFAULT_REAL_PROJECTION, Projection.ZSCORE_PROJECTION]
-    }
+	List<String> getSearchableProjections() {
+		[Projection.LOG_INTENSITY_PROJECTION, Projection.DEFAULT_REAL_PROJECTION, Projection.ZSCORE_PROJECTION]
+	}
 }

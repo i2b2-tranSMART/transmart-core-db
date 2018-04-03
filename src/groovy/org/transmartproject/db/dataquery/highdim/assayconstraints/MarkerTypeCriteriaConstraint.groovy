@@ -25,13 +25,12 @@ import org.grails.datastore.mapping.query.api.Criteria
 @Canonical
 class MarkerTypeCriteriaConstraint implements AssayCriteriaConstraint {
 
-    List platformNames
+	List platformNames
 
-    @Override
-    void addToCriteria(Criteria criteria) {
-        /** @see org.transmartproject.db.dataquery.highdim.DeSubjectSampleMapping */
-        criteria.platform {
-            'in' 'markerType', platformNames
-        }
-    }
+	void addToCriteria(Criteria criteria) {
+		/** @see org.transmartproject.db.dataquery.highdim.DeSubjectSampleMapping */
+		criteria.platform {
+			'in' 'markerType', platformNames
+		}
+	}
 }

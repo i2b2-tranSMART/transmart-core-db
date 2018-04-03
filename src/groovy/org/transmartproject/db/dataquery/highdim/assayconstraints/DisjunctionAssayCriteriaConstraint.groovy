@@ -23,14 +23,13 @@ import org.grails.datastore.mapping.query.api.Criteria
 
 class DisjunctionAssayCriteriaConstraint implements AssayCriteriaConstraint {
 
-    List<AssayCriteriaConstraint> constraints
+	List<AssayCriteriaConstraint> constraints
 
-    @Override
-    void addToCriteria(Criteria criteria) {
-        criteria.or {
-            constraints.each { AssayCriteriaConstraint subConstraint ->
-                subConstraint.addToCriteria criteria
-            }
-        }
-    }
+	void addToCriteria(Criteria criteria) {
+		criteria.or {
+			for (AssayCriteriaConstraint subConstraint in constraints) {
+				subConstraint.addToCriteria criteria
+			}
+		}
+	}
 }

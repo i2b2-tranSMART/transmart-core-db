@@ -25,23 +25,22 @@ import org.transmartproject.core.dataquery.DataRow
 import org.transmartproject.core.dataquery.TabularResult
 
 @CompileStatic
-class InMemoryTabularResult<I extends DataColumn, R extends DataRow> implements TabularResult<I,R> {
+class InMemoryTabularResult<I extends DataColumn, R extends DataRow> implements TabularResult<I, R> {
 
-    @Delegate
-    private TabularResult delegate
-    private List<R> internalRows
+	@Delegate
+	private TabularResult delegate
+	private List<R> internalRows
 
-    InMemoryTabularResult(TabularResult delegate) {
-        this.delegate = delegate
-        internalRows = delegate.rows.collect() as List
-    }
+	InMemoryTabularResult(TabularResult delegate) {
+		this.delegate = delegate
+		internalRows = delegate.rows.collect() as List
+	}
 
-    Iterator<R> iterator() {
-        internalRows.iterator()
-    }
+	Iterator<R> iterator() {
+		internalRows.iterator()
+	}
 
-    Iterator<R> getRows() {
-        internalRows.iterator()
-    }
-
+	Iterator<R> getRows() {
+		internalRows.iterator()
+	}
 }

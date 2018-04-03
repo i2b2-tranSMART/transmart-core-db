@@ -52,7 +52,7 @@ class AcrossTrialsConceptsResourceDecorator implements ConceptsResource {
 		if (fullName[0] != ACROSS_TRIALS_TOP_TERM_NAME) {
 			throw new NoSuchResourceException(
 					"All the across trials terms' first path component should be " +
-					ACROSS_TRIALS_TOP_TERM_NAME)
+							ACROSS_TRIALS_TOP_TERM_NAME)
 		}
 
 		if (fullName.length == 1) {
@@ -72,6 +72,6 @@ class AcrossTrialsConceptsResourceDecorator implements ConceptsResource {
 
 	@CompileDynamic
 	private String buildModifierPath(ConceptFullName fullName) {
-		 "\\${fullName[1..-1].join '\\'}\\"
+		"\\${fullName[1..-1].join '\\'}\\"
 	}
 }

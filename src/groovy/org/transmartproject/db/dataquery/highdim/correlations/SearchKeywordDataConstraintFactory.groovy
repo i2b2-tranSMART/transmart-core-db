@@ -33,128 +33,114 @@ import static org.transmartproject.db.dataquery.highdim.parameterproducers.Bindi
 
 class SearchKeywordDataConstraintFactory implements DataRetrievalParameterFactory {
 
-    CorrelationTypesRegistry correlationTypesRegistry
+	CorrelationTypesRegistry correlationTypesRegistry
+	String targetType
+	String alias
+	String property
 
-    String targetType
+	@Delegate
+	DataRetrievalParameterFactory innerFactory
 
-    String alias,
-           property
+	SearchKeywordDataConstraintFactory(CorrelationTypesRegistry correlationTypesRegistry,
+	                                   String targetType, String alias, String property) {
+		this.correlationTypesRegistry = correlationTypesRegistry
+		this.targetType = targetType
+		this.alias = alias
+		this.property = property
 
-    @Delegate
-    DataRetrievalParameterFactory innerFactory
+		def searchKeywordIdsConstraint = searchKeywordIdsConstraint()
+		def dataTypeSpecificConstraints = dataTypeSpecificConstraints()
 
+		def builder = ImmutableMap.builder()
 
-    SearchKeywordDataConstraintFactory(CorrelationTypesRegistry correlationTypesRegistry,
-                                       String targetType,
-                                       String alias,
-                                       String property) {
-        this.correlationTypesRegistry = correlationTypesRegistry
-        this.targetType = targetType
-        this.alias = alias
-        this.property = property
+		builder.put searchKeywordIdsConstraint[0], searchKeywordIdsConstraint[1]
 
-        def searchKeywordIdsConstraint = searchKeywordIdsConstraint()
-        def dataTypeSpecificConstraints = dataTypeSpecificConstraints()
+		for (it in dataTypeSpecificConstraints) {
+			builder.put it[0], it[1]
+		}
 
-        def builder = ImmutableMap.builder()
+		innerFactory = new MapBasedParameterFactory(builder.build())
+	}
 
-        builder.put(searchKeywordIdsConstraint[0],
-                    searchKeywordIdsConstraint[1])
+	// search_keyword_ids constraint
+	List searchKeywordIdsConstraint() {
+		Set<CorrelationType> allCorrelations = correlationTypesRegistry.getCorrelationTypesForTargetType(targetType)
 
-        dataTypeSpecificConstraints.each {
-            builder.put(it[0], it[1])
-        }
+		[DataConstraint.SEARCH_KEYWORD_IDS_CONSTRAINT,
+		 this.&createSearchKeywordIdsConstraint.curry(allCorrelations)]
+	}
 
-        innerFactory = new MapBasedParameterFactory(builder.build())
-    }
+	DataConstraint createSearchKeywordIdsConstraint(Set<CorrelationType> allCorrelations,
+	                                                Map<String, Object> params) {
+		if (params.size() != 1) {
+			throw new InvalidArgumentsException(
+					"Expected exactly 1 parameter here; got $params.size()")
+		}
 
-    /* search_keyword_ids constraint */
-    List searchKeywordIdsConstraint() {
-        Set<CorrelationType> allCorrelations = correlationTypesRegistry.
-                getCorrelationTypesForTargetType(targetType)
-        [
-                DataConstraint.SEARCH_KEYWORD_IDS_CONSTRAINT,
-                this.&createSearchKeywordIdsConstraint.curry(allCorrelations)
-        ]
-    }
+		if (params.keyword_ids == null) {
+			throw new InvalidArgumentsException(
+					"Could not find the parameter 'keyword_ids'")
+		}
 
-    DataConstraint createSearchKeywordIdsConstraint(Set<CorrelationType> allCorrelations,
-                                                    Map<String, Object> params) {
-        if (params.size() != 1) {
-            throw new InvalidArgumentsException(
-                    "Expected exactly 1 parameter here; got $params.size()")
-        }
-        if (params.keyword_ids == null) {
-            throw new InvalidArgumentsException(
-                    "Could not find the parameter 'keyword_ids'")
-        }
-        List<Long> keywordIds = processLongList 'keyword_ids', params.keyword_ids
+		List<Long> keywordIds = processLongList 'keyword_ids', params.keyword_ids
 
-        SearchKeywordDataConstraint.createForSearchKeywordIds(
-                entityAlias: alias,
-                propertyToRestrict: property,
-                correlationTypes: allCorrelations,
-                keywordIds)
-    }
+		SearchKeywordDataConstraint.createForSearchKeywordIds(
+				entityAlias: alias,
+				propertyToRestrict: property,
+				correlationTypes: allCorrelations,
+				keywordIds)
+	}
 
-    /* source data type specific constraints */
-    List dataTypeSpecificConstraints() {
-        correlationTypesRegistry.getConstraintsForTargetType(targetType).collect {
-            String constraintName,
-            CorrelationType correlationType ->
-            [
-                    constraintName,
-                    this.&createSourceTypeSpecificConstraint.
-                            curry(correlationType)
-            ]
-        }
-    }
+	// source data type specific constraints
 
-    DataConstraint createSourceTypeSpecificConstraint(CorrelationType correlation,
-                                                      Map<String, Object> params) {
-        List<SearchKeywordCoreDb> keywords
+	List dataTypeSpecificConstraints() {
+		correlationTypesRegistry.getConstraintsForTargetType(targetType).collect {
+			String constraintName, CorrelationType correlationType ->
+				[constraintName, this.&createSourceTypeSpecificConstraint.curry(correlationType)]
+		}
+	}
 
-        if (params.size() != 1) {
-            throw new InvalidArgumentsException(
-                    "Expected exactly 1 parameter here; got $params.size()")
-        }
+	DataConstraint createSourceTypeSpecificConstraint(CorrelationType correlation, Map<String, Object> params) {
 
-        if (params.containsKey('names')) {
-            List names = processStringList 'names', params.names
+		if (params.size() != 1) {
+			throw new InvalidArgumentsException("Expected exactly 1 parameter here; got $params.size()")
+		}
 
-            keywords = SearchKeywordCoreDb.findAllByKeywordInListAndDataCategory(
-                            names, correlation.sourceType)
+		List<SearchKeywordCoreDb> keywords
+		if (params.containsKey('names')) {
+			List names = processStringList 'names', params.names
 
-            if (keywords.isEmpty()) {
-                throw new InvalidArgumentsException("No search keywords " +
-                        "of the category $correlation.sourceType match with " +
-                        "name in list $names")
-            }
-        } else if (params.containsKey('ids')) {
-            // these ids are the 'external' ids, not the search keyword PKs
+			keywords = SearchKeywordCoreDb.findAllByKeywordInListAndDataCategory(names, correlation.sourceType)
+			if (!keywords) {
+				throw new InvalidArgumentsException("No search keywords " +
+						"of the category $correlation.sourceType match with " +
+						"name in list $names")
+			}
+		}
+		else if (params.containsKey('ids')) {
+			// these ids are the 'external' ids, not the search keyword PKs
 
-            List ids = processStringList 'ids', params.ids
+			List ids = processStringList 'ids', params.ids
 
-            def uniqueIds = ids.collect { "$correlation.sourceType:$it" as String }
-            keywords = SearchKeywordCoreDb.findAllByUniqueIdInListAndDataCategory(
-                            uniqueIds, correlation.sourceType)
+			List<String> uniqueIds = ids.collect { "$correlation.sourceType:$it" as String }
+			keywords = SearchKeywordCoreDb.findAllByUniqueIdInListAndDataCategory(
+					uniqueIds, correlation.sourceType)
 
-            if (keywords.isEmpty()) {
-                throw new InvalidArgumentsException("No search keywords " +
-                        "of the category $correlation.sourceType match " +
-                        "UNIQUE_ID in list $uniqueIds")
-            }
-        } else {
-            def paramName = Iterables.getFirst params.keySet(), null
+			if (!keywords) {
+				throw new InvalidArgumentsException("No search keywords " +
+						"of the category $correlation.sourceType match " +
+						"UNIQUE_ID in list $uniqueIds")
+			}
+		}
+		else {
+			String paramName = Iterables.getFirst(params.keySet(), null)
+			throw new InvalidArgumentsException("Invalid parameter: $paramName")
+		}
 
-            throw new InvalidArgumentsException("Invalid parameter: $paramName")
-        }
-
-        SearchKeywordDataConstraint.createForSearchKeywords(
-                keywords,
-                entityAlias:        alias,
-                propertyToRestrict: property,
-                correlationTypes:   ImmutableSet.of(correlation))
-    }
-
+		SearchKeywordDataConstraint.createForSearchKeywords(
+				keywords,
+				entityAlias: alias,
+				propertyToRestrict: property,
+				correlationTypes: ImmutableSet.of(correlation))
+	}
 }

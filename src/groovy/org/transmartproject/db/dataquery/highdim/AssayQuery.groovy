@@ -20,7 +20,6 @@
 package org.transmartproject.db.dataquery.highdim
 
 import grails.gorm.DetachedCriteria
-import groovy.transform.CompileStatic
 import org.transmartproject.core.dataquery.assay.Assay
 import org.transmartproject.db.dataquery.AbstractEntityQuery
 import org.transmartproject.db.dataquery.highdim.assayconstraints.AssayCriteriaConstraint
@@ -30,7 +29,6 @@ import org.transmartproject.db.dataquery.highdim.assayconstraints.AssayCriteriaC
  *
  * Takes care of issuing the query for assays.
  */
-@CompileStatic
 class AssayQuery extends AbstractEntityQuery<Assay> {
 
 	private final DetachedCriteria<DeSubjectSampleMapping> criteria

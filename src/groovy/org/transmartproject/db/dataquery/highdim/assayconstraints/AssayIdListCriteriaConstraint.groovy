@@ -23,10 +23,9 @@ import org.grails.datastore.mapping.query.api.Criteria
 
 class AssayIdListCriteriaConstraint implements AssayCriteriaConstraint {
 
-    List<Long> ids
+	List<Long> ids
 
-    @Override
-    void addToCriteria(Criteria criteria) {
-        criteria.in 'id', ids
-    }
+	void addToCriteria(Criteria criteria) {
+		criteria.in 'id', ids
+	}
 }

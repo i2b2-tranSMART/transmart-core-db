@@ -29,46 +29,45 @@ import org.transmartproject.core.dataquery.TabularResult
 @CompileStatic
 class RepeatedEntriesCollectingTabularResult<T extends AbstractDataRow> {
 
-    @Delegate
-    TabularResult<DataColumn, T> tabularResult
+	@Delegate
+	TabularResult<DataColumn, T> tabularResult
 
-    Closure<Object> collectBy = Closure.IDENTITY
+	Closure collectBy = Closure.IDENTITY
 
-    Closure<T> resultItem = { List<T> it -> (T) it[0] }
+	Closure<T> resultItem = { List<T> it -> (T) it[0] }
 
-    Iterator<T> getRows() {
-        new RepeatedEntriesCollectingIterator(tabularResult.iterator())
-    }
+	Iterator<T> getRows() {
+		new RepeatedEntriesCollectingIterator(tabularResult.iterator())
+	}
 
-    Iterator<T> iterator() {
-        getRows()
-    }
+	Iterator<T> iterator() {
+		getRows()
+	}
 
-    @CompileStatic
-    public class RepeatedEntriesCollectingIterator extends AbstractIterator<T> {
+	// @CompileStatic
+	class RepeatedEntriesCollectingIterator extends AbstractIterator<T> {
 
-        PeekingIterator<T> sourceIterator
+		PeekingIterator<T> sourceIterator
 
-        RepeatedEntriesCollectingIterator(Iterator<T> sourceIterator) {
-            this.sourceIterator = (PeekingIterator<T>) Iterators.peekingIterator((Iterator) sourceIterator)
-        }
+		RepeatedEntriesCollectingIterator(Iterator<T> sourceIterator) {
+			sourceIterator = (PeekingIterator<T>) Iterators.peekingIterator((Iterator) sourceIterator)
+		}
 
-        @Override
-        protected T computeNext() {
-            List<T> collected = []
-            if (!sourceIterator.hasNext()) {
-                endOfData()
-                return
-            }
+		protected T computeNext() {
+			List<T> collected = []
+			if (!sourceIterator.hasNext()) {
+				endOfData()
+				return
+			}
 
-            collected.add((T) sourceIterator.next())
-            while (sourceIterator.hasNext() &&
-                    collectBy.call(sourceIterator.peek()) != null &&
-                    collectBy.call(sourceIterator.peek()) == collectBy.call(collected[0])) {
-                collected.add((T) sourceIterator.next())
-            }
+			collected << (T) sourceIterator.next()
+			while (sourceIterator.hasNext() &&
+					collectBy.call(sourceIterator.peek()) != null &&
+					collectBy.call(sourceIterator.peek()) == collectBy.call(collected[0])) {
+				collected.add((T) sourceIterator.next())
+			}
 
-            (T) resultItem.call(collected)
-        }
-    }
+			(T) resultItem.call(collected)
+		}
+	}
 }

@@ -25,11 +25,10 @@ import org.grails.datastore.mapping.query.api.Criteria
 @Canonical
 class DefaultTrialNameCriteriaConstraint implements AssayCriteriaConstraint {
 
-    String trialName
+	String trialName
 
-    @Override
-    void addToCriteria(Criteria criteria) {
-        /** @see org.transmartproject.db.dataquery.highdim.DeSubjectSampleMapping */
-        criteria.eq 'trialName', trialName
-    }
+	void addToCriteria(Criteria criteria) {
+		/** @see org.transmartproject.db.dataquery.highdim.DeSubjectSampleMapping */
+		criteria.eq 'trialName', trialName
+	}
 }

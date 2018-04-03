@@ -232,7 +232,6 @@ abstract class CollectingTabularResult<C, R extends DataRow> implements TabularR
 		getRows()
 	}
 
-	@Override
 	protected void finalize() throws Throwable {
 		super.finalize()
 		if (!closeCalled) {

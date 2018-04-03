@@ -19,7 +19,13 @@
 
 package org.transmartproject.db.querytool
 
-import org.hibernate.jdbc.Work
+import grails.compiler.GrailsCompileStatic
+import groovy.sql.Sql
+import groovy.util.logging.Slf4j
+import org.hibernate.SessionFactory
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.util.Assert
 import org.transmartproject.core.exceptions.InvalidRequestException
 import org.transmartproject.core.exceptions.NoSuchResourceException
 import org.transmartproject.core.querytool.QueriesResource
@@ -27,180 +33,172 @@ import org.transmartproject.core.querytool.QueryDefinition
 import org.transmartproject.core.querytool.QueryResult
 import org.transmartproject.core.querytool.QueryStatus
 import org.transmartproject.db.user.User
+import org.transmartproject.db.user.UsersResourceService
 
-import java.sql.Connection
+import javax.sql.DataSource
 
+@GrailsCompileStatic
+@Slf4j('logger')
 class QueriesResourceService implements QueriesResource {
 
-    def grailsApplication
-    def patientSetQueryBuilderService
-    def queryDefinitionXmlService
-    def sessionFactory
-    def usersResourceService
+	static transactional = false
 
-    @Override
-    @Deprecated
-    QueryResult runQuery(QueryDefinition definition) throws InvalidRequestException {
-        runQuery(definition,
-                (String) grailsApplication.config.org.transmartproject.i2b2.user_id)
-    }
+	@Value('${org.transmartproject.i2b2.group_id:]')
+	private String i2b2GroupId
 
-    @Override
-    QueryResult runQuery(QueryDefinition definition,
-                         String username) throws InvalidRequestException {
-        // 1. Populate qt_query_master
-        QtQueryMaster queryMaster = new QtQueryMaster(
-            name           : definition.name,
-            userId         : username,
-            groupId        : grailsApplication.config.org.transmartproject.i2b2.group_id,
-            createDate     : new Date(),
-            generatedSql   : null,
-            requestXml     : queryDefinitionXmlService.toXml(definition),
-            i2b2RequestXml : null,
-        )
+	@Value('${org.transmartproject.i2b2.user_id:]')
+	private String i2b2UserId
 
-        // 2. Populate qt_query_instance
-        QtQueryInstance queryInstance = new QtQueryInstance(
-                userId       : username,
-                groupId      : grailsApplication.config.org.transmartproject.i2b2.group_id,
-                startDate    : new Date(),
-                statusTypeId : QueryStatus.PROCESSING.id,
-                queryMaster  : queryMaster,
-        )
-        queryMaster.addToQueryInstances(queryInstance)
+	@Autowired private DataSource dataSource
+	@Autowired private PatientSetQueryBuilderService patientSetQueryBuilderService
+	@Autowired private QueryDefinitionXmlService queryDefinitionXmlService
+	@Autowired private SessionFactory sessionFactory
+	@Autowired private UsersResourceService usersResourceService
 
-        // 3. Populate qt_query_result_instance
-        QtQueryResultInstance resultInstance = new QtQueryResultInstance(
-                statusTypeId  : QueryStatus.PROCESSING.id,
-                startDate     : new Date(),
-                queryInstance : queryInstance
-        )
-        queryInstance.addToQueryResults(resultInstance)
+	@Deprecated
+	QueryResult runQuery(QueryDefinition definition) throws InvalidRequestException {
+		runQuery definition, i2b2UserId
+	}
 
-        // 4. Save the three objects
-        if (!queryMaster.validate()) {
-            throw new InvalidRequestException('Could not create a valid ' +
-                    'QtQueryMaster: ' + queryMaster.errors)
-        }
-        if (queryMaster.save() == null) {
-            throw new RuntimeException('Failure saving QtQueryMaster')
-        }
+	QueryResult runQuery(QueryDefinition definition, String username) throws InvalidRequestException {
+		// 1. Populate qt_query_master
+		QtQueryMaster queryMaster = new QtQueryMaster(
+				name: definition.name,
+				userId: username,
+				groupId: i2b2GroupId,
+				createDate: new Date(),
+				requestXml: queryDefinitionXmlService.toXml(definition))
 
-        // 5. Flush session so objects are inserted & raw SQL can access them
-        sessionFactory.currentSession.flush()
+		// 2. Populate qt_query_instance
+		QtQueryInstance queryInstance = new QtQueryInstance(
+				userId: username,
+				groupId: i2b2GroupId,
+				startDate: new Date(),
+				statusTypeId: QueryStatus.PROCESSING.id,
+				queryMaster: queryMaster)
+		queryMaster.addToQueryInstances queryInstance
 
-        // 6. Build the patient set
-        def setSize
-        def sql = '<NOT BUILT>'
-        try {
-            sessionFactory.currentSession.doWork ({ Connection conn ->
-                def statement = conn.prepareStatement('SAVEPOINT doWork')
-                statement.execute()
-            } as Work)
+		// 3. Populate qt_query_result_instance
+		QtQueryResultInstance resultInstance = new QtQueryResultInstance(
+				statusTypeId: QueryStatus.PROCESSING.id,
+				startDate: new Date(),
+				queryInstance: queryInstance)
+		queryInstance.addToQueryResults resultInstance
 
-            sql = patientSetQueryBuilderService.buildPatientSetQuery(
-                    resultInstance, definition, tryLoadingUser(username))
+		// 4. Save the three objects
+		if (!queryMaster.validate()) {
+			throw new InvalidRequestException('Could not create a valid QtQueryMaster: ' + queryMaster.errors)
+		}
+		if (!queryMaster.save()) {
+			throw new RuntimeException('Failure saving QtQueryMaster')
+		}
 
-            sessionFactory.currentSession.doWork ({ Connection conn ->
-                def statement = conn.prepareStatement(sql)
-                setSize = statement.executeUpdate()
+		// 5. Flush session so objects are inserted & raw SQL can access them
+		sessionFactory.currentSession.flush()
 
-                log.debug "Inserted $setSize rows into qt_patient_set_collection"
-            } as Work)
-        } catch (InvalidRequestException e) {
-            log.error 'Invalid request; rolling back transaction', e
-            throw e /* unchecked; rolls back transaction */
-        } catch (Exception e) {
-            // 6e. Handle error when building/running patient set query
-            log.error 'Error running (or building) querytool SQL query, ' +
-                    "failing query was '$sql'", e
+		// 6. Build the patient set
+		long setSize
+		String sqlString = '<NOT BUILT>'
+		Sql sql = new Sql(dataSource)
+		try {
+			sql.execute 'SAVEPOINT doWork'
 
-            // Rollback to save point
-            sessionFactory.currentSession.createSQLQuery(
-                    'ROLLBACK TO SAVEPOINT doWork').executeUpdate()
+			sqlString = patientSetQueryBuilderService.buildPatientSetQuery(
+					resultInstance, definition, tryLoadingUser(username))
 
-            StringWriter sw = new StringWriter()
-            e.printStackTrace(new PrintWriter(sw, true))
+			setSize = sql.executeUpdate(sqlString)
 
-            resultInstance.setSize = resultInstance.realSetSize = -1
-            resultInstance.endDate = new Date()
-            resultInstance.statusTypeId = QueryStatus.ERROR.id
-            resultInstance.errorMessage = sw.toString()
+			logger.debug 'Inserted {} rows into qt_patient_set_collection', setSize
+		}
+		catch (InvalidRequestException e) {
+			logger.error 'Invalid request; rolling back transaction', e
+			throw e /* unchecked; rolls back transaction */
+		}
+		catch (e) {
+			// 6e. Handle error when building/running patient set query
+			logger.error 'Error running (or building) querytool SQL query, failing query was "{}"', sqlString, e
 
-            queryInstance.endDate = new Date()
-            queryInstance.statusTypeId = QueryStatus.ERROR.id
-            queryInstance.message = sw.toString()
+			// Rollback to save point
+			sql.executeUpdate'ROLLBACK TO SAVEPOINT doWork'
 
-            if (!resultInstance.save()) {
-                log.error("After exception from " +
-                        "patientSetQueryBuilderService::buildService, " +
-                        "failed saving updated resultInstance and " +
-                        "queryInstance")
-            }
-            return resultInstance
-        }
+			StringWriter sw = new StringWriter()
+			e.printStackTrace new PrintWriter(sw, true)
 
-        // 7. Update result instance and query instance
-        resultInstance.setSize = resultInstance.realSetSize = setSize
-        resultInstance.description = "Patient set for \"${definition.name}\""
-        resultInstance.endDate = new Date()
-        resultInstance.statusTypeId = QueryStatus.FINISHED.id
+			resultInstance.setSize = resultInstance.realSetSize = -1L
+			resultInstance.endDate = new Date()
+			resultInstance.statusTypeId = (short) QueryStatus.ERROR.id
+			resultInstance.errorMessage = sw.toString()
 
-        queryInstance.endDate = new Date()
-        queryInstance.statusTypeId = QueryStatus.COMPLETED.id
+			queryInstance.endDate = new Date()
+			queryInstance.statusTypeId = QueryStatus.ERROR.id
+			queryInstance.message = sw.toString()
 
-        def newResultInstance = resultInstance.save()
-        if (!newResultInstance) {
-            throw new RuntimeException('Failure saving resultInstance after ' +
-                    'successfully building patient set. Errors: ' +
-                    resultInstance.errors)
-        }
+			if (!resultInstance.save()) {
+				logger.error 'After exception from patientSetQueryBuilderService::buildService,' +
+						' failed saving updated resultInstance and queryInstance'
+			}
+			return resultInstance
+		}
 
-        // 8. Return result instance
-        resultInstance
-    }
+		// 7. Update result instance and query instance
+		resultInstance.setSize = resultInstance.realSetSize = setSize
+		resultInstance.description = "Patient set for \"${definition.name}\""
+		resultInstance.endDate = new Date()
+		resultInstance.statusTypeId = (short) QueryStatus.FINISHED.id
 
-    @Override
-    QueryResult getQueryResultFromId(Long id) throws NoSuchResourceException {
-        QtQueryResultInstance.get(id) ?:
-                {  throw new NoSuchResourceException(
-                        "Could not find query result instance with id $id") }()
-    }
+		queryInstance.endDate = new Date()
+		queryInstance.statusTypeId = QueryStatus.COMPLETED.id
 
-    @Override
-    QueryDefinition getQueryDefinitionForResult(QueryResult result)
-            throws NoSuchResourceException {
-        List answer = QtQueryResultInstance.executeQuery(
-                '''SELECT R.queryInstance.queryMaster.requestXml FROM
-                        QtQueryResultInstance R WHERE R = ?''',
-                [result])
-        if (!answer) {
-            throw new NoSuchResourceException('Could not find definition for ' +
-                    'query result with id=' + result.id)
-        }
+		if (!resultInstance.save()) {
+			throw new RuntimeException('Failure saving resultInstance after ' +
+					'successfully building patient set. Errors: ' + resultInstance.errors)
+		}
 
-        queryDefinitionXmlService.fromXml(new StringReader(answer[0]))
-    }
+		// 8. Return result instance
+		resultInstance
+	}
 
-    User tryLoadingUser(String user) {
-        /* this doesn't fail if the user doesn't exist. This is for historical
-         * reasons. The user associated with the query used to be an I2B2 user,
-         * not a tranSMART user. This lax behavior is to allow core-db to work
-         * under this old assumption (useful only for interoperability with
-         * i2b2). Though, arguably, this should not be supported in transmart
-         * as across trials queries and permission checks will fail if the
-         * user is not a tranSMART user. Log a warning.
-         */
-        if (user == null) {
-            throw new NullPointerException("Username not provided")
-        }
-        try {
-            usersResourceService.getUserFromUsername(user)
-        } catch (NoSuchResourceException unf) {
-            log.warn("User $user not found. This is permitted for " +
-                    "compatibility with i2b2, but tranSMART functionality " +
-                    "will be degraded, and this behavior is deprecated")
-            return null
-        }
-    }
+	QueryResult getQueryResultFromId(Long id) throws NoSuchResourceException {
+		QtQueryResultInstance qtQueryResultInstance = QtQueryResultInstance.get(id)
+		if (qtQueryResultInstance) {
+			qtQueryResultInstance
+		}
+		else {
+			throw new NoSuchResourceException('Could not find query result instance with id ' + id)
+		}
+	}
+
+	QueryDefinition getQueryDefinitionForResult(QueryResult result) throws NoSuchResourceException {
+		List<String> requestXmls = QtQueryResultInstance.executeQuery('''
+				SELECT R.queryInstance.queryMaster.requestXml
+				FROM QtQueryResultInstance R WHERE R = ?''', [result]) as List<String>
+		if (!requestXmls) {
+			throw new NoSuchResourceException(
+					'Could not find definition for query result with id=' + result.id)
+		}
+
+		queryDefinitionXmlService.fromXml new StringReader(requestXmls[0])
+	}
+
+	/**
+	 * This doesn't fail if the user doesn't exist. This is for historical
+	 * reasons. The user associated with the query used to be an I2B2 user,
+	 * not a tranSMART user. This lax behavior is to allow core-db to work
+	 * under this old assumption (useful only for interoperability with
+	 * i2b2). Though, arguably, this should not be supported in transmart
+	 * as across trials queries and permission checks will fail if the
+	 * user is not a tranSMART user. Log a warning.
+	 */
+	User tryLoadingUser(String username) {
+		Assert.hasLength username, 'Username not provided'
+
+		try {
+			usersResourceService.getUserFromUsername username
+		}
+		catch (NoSuchResourceException ignored) {
+			logger.warn 'User {} not found. This is permitted for compatibility with i2b2, ' +
+					'but tranSMART functionality will be degraded, and this behavior is deprecated', username
+			return null
+		}
+	}
 }

@@ -19,7 +19,7 @@
 
 package org.transmartproject.db.http
 
-import org.apache.log4j.Logger
+import groovy.util.logging.Slf4j
 import org.codehaus.groovy.grails.web.mapping.DefaultUrlMappingInfo
 import org.codehaus.groovy.grails.web.mapping.UrlMappingData
 import org.codehaus.groovy.grails.web.mapping.UrlMappingInfo
@@ -28,107 +28,96 @@ import org.springframework.core.Ordered
 import org.springframework.web.context.ServletContextAware
 import org.springframework.web.servlet.HandlerExceptionResolver
 import org.springframework.web.servlet.ModelAndView
-import org.transmartproject.core.exceptions.*
+import org.transmartproject.core.exceptions.AccessDeniedException
+import org.transmartproject.core.exceptions.EmptySetException
+import org.transmartproject.core.exceptions.InvalidArgumentsException
+import org.transmartproject.core.exceptions.InvalidRequestException
+import org.transmartproject.core.exceptions.NoSuchResourceException
+import org.transmartproject.core.exceptions.UnexpectedResultException
+import org.transmartproject.core.exceptions.UnsupportedByDataTypeException
 
 import javax.servlet.ServletContext
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
-import static javax.servlet.http.HttpServletResponse.*
+import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST
+import static javax.servlet.http.HttpServletResponse.SC_FORBIDDEN
+import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR
+import static javax.servlet.http.HttpServletResponse.SC_NOT_FOUND
 
-class BusinessExceptionResolver implements ServletContextAware,
-        HandlerExceptionResolver, Ordered {
+@Slf4j('logger')
+class BusinessExceptionResolver implements ServletContextAware, HandlerExceptionResolver, Ordered {
 
-    private Logger log = Logger.getLogger(getClass())
+	ServletContext servletContext
+	int order = HIGHEST_PRECEDENCE
 
-    ServletContext servletContext
-    int order = Ordered.HIGHEST_PRECEDENCE
+	String controllerName = 'businessException'
+	String actionName = 'index'
+	boolean handleAll = false
 
-    String controllerName = 'businessException'
-    String actionName = 'index'
-    boolean handleAll = false
+	private final ModelAndView EMPTY_MV = new ModelAndView()
 
-    private final ModelAndView EMPTY_MV = new ModelAndView()
+	public final static String REQUEST_ATTRIBUTE_STATUS = this.name + '.STATUS'
+	public final static String REQUEST_ATTRIBUTE_EXCEPTION = this.name + '.EXCEPTION'
 
-    public final static String REQUEST_ATTRIBUTE_STATUS = 'org' +
-            '.transmartproject.db.http.BusinessExceptionResolver.STATUS'
-    public final static String REQUEST_ATTRIBUTE_EXCEPTION = 'org' +
-            '.transmartproject.db.http.BusinessExceptionResolver.EXCEPTION'
+	private static Map<Exception, Integer> statusCodeMappings = [
+			(NoSuchResourceException)       : SC_NOT_FOUND,
+			(InvalidRequestException)       : SC_BAD_REQUEST,
+			(InvalidArgumentsException)     : SC_BAD_REQUEST,
+			(EmptySetException)             : SC_NOT_FOUND,
+			(UnsupportedByDataTypeException): SC_BAD_REQUEST,
+			(UnexpectedResultException)     : SC_INTERNAL_SERVER_ERROR,
+			(AccessDeniedException)         : SC_FORBIDDEN].asImmutable()
 
-    static statusCodeMappings = [
-            (NoSuchResourceException):        SC_NOT_FOUND,
-            (InvalidRequestException):        SC_BAD_REQUEST,
-            (InvalidArgumentsException):      SC_BAD_REQUEST,
-            (EmptySetException):              SC_NOT_FOUND,
-            (UnsupportedByDataTypeException): SC_BAD_REQUEST,
-            (UnexpectedResultException):      SC_INTERNAL_SERVER_ERROR,
-            (AccessDeniedException):          SC_FORBIDDEN,
-    ]
+	private Throwable resolveCause(Throwable t) {
+		if (t.cause && t.cause != t) {
+			t.cause
+		}
+		else if (t.metaClass.hasProperty('target')) {
+			t.target
+		}
+	}
 
-    private Throwable resolveCause(Throwable t) {
-        if (t.cause != null && t.cause != t) {
-            return t.cause
-        } else if (t.metaClass.hasProperty('target')) {
-            return t.target
-        }
-    }
+	ModelAndView resolveException(HttpServletRequest request, HttpServletResponse response, handler, Exception e) {
 
-    @Override
-    ModelAndView resolveException(HttpServletRequest request,
-                                  HttpServletResponse response,
-                                  Object handler,
-                                  Exception ex) {
+		logger.info 'Asked BusinessExceptionResolver to resolve exception from handler ${handler}', e
 
-        log.info("Asked BusinessExceptionResolver to resolve exception from " +
-                "handler ${handler}", ex)
+		def exceptionPlusStatus = null
+		while (!exceptionPlusStatus && e) {
+			exceptionPlusStatus = statusCodeMappings.findResult {
+				if (it.key.isAssignableFrom(e.getClass())) {
+					return [(REQUEST_ATTRIBUTE_EXCEPTION): e, (REQUEST_ATTRIBUTE_STATUS): it.value]
+				}
+			}
 
-        def exceptionPlusStatus = null
-        def e = ex
-        while (!exceptionPlusStatus && e) {
-            exceptionPlusStatus = statusCodeMappings.findResult {
-                if (it.key.isAssignableFrom(e.getClass())) {
-                    return [
-                            (REQUEST_ATTRIBUTE_EXCEPTION): e,
-                            (REQUEST_ATTRIBUTE_STATUS): it.value
-                    ]
-                }
-            }
+			e = resolveCause(e)
+		}
 
-            e = resolveCause(e)
-        }
+		if (!exceptionPlusStatus && handleAll) {
+			exceptionPlusStatus = [(REQUEST_ATTRIBUTE_EXCEPTION): e, (REQUEST_ATTRIBUTE_STATUS): SC_INTERNAL_SERVER_ERROR]
+		}
 
-        if (!exceptionPlusStatus && handleAll) {
-            exceptionPlusStatus = [
-                    (REQUEST_ATTRIBUTE_EXCEPTION): ex,
-                    (REQUEST_ATTRIBUTE_STATUS): SC_INTERNAL_SERVER_ERROR
-            ]
-        }
+		// we know this exception
+		if (exceptionPlusStatus) {
+			logger.debug 'BusinessExceptionResolver will handle exception {}', e.message
+			Map model = exceptionPlusStatus
 
-        /* we know this exception */
-        if (exceptionPlusStatus) {
-            log.debug("BusinessExceptionResolver will handle exception ${e}")
-            Map model = exceptionPlusStatus
+			UrlMappingInfo info = new DefaultUrlMappingInfo(
+					(Object) null, /* redirectInfo */
+					controllerName,
+					actionName,
+					(Object) null, /* namespace */
+					(Object) null, /* pluginName */
+					(Object) null, /* viewName */
+					(String) null, /* method */
+					(String) null, /* version */
+					[:],           /* params */
+					(UrlMappingData) null,
+					servletContext)
 
-            UrlMappingInfo info = new DefaultUrlMappingInfo(
-                    (Object) null, /* redirectInfo */
-                    controllerName,
-                    actionName,
-                    (Object) null, /* namespace */
-                    (Object) null, /* pluginName */
-                    (Object) null, /* viewName */
-                    (String) null, /* method */
-                    (String) null, /* version */
-                    [:],           /* params */
-                    (UrlMappingData) null,
-                    servletContext)
+			WebUtils.forwardRequestForUrlMappingInfo request, response, info, model, true
 
-            WebUtils.forwardRequestForUrlMappingInfo(
-                    request, response, info, model, true)
-
-            return EMPTY_MV
-        }
-
-        /* returns null */
-    }
-
+			return EMPTY_MV
+		}
+	}
 }

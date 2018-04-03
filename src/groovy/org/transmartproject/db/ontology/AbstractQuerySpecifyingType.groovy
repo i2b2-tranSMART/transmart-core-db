@@ -33,29 +33,29 @@ import org.transmartproject.db.user.User
  */
 abstract class AbstractQuerySpecifyingType implements MetadataSelectQuerySpecification {
 
-	String factTableColumn
-	String dimensionTableName
-	String columnName
 	String columnDataType
-	String operator
+	String columnName
 	String dimensionCode
+	String dimensionTableName
+	String factTableColumn
+	String operator
 
 	def patientSetQueryBuilderService
 	def sessionFactory
 	def databasePortabilityService
 
 	static constraints = {
-		factTableColumn    maxSize: 50
-		dimensionTableName maxSize: 50
-		columnName         maxSize: 50
 		columnDataType     maxSize: 50
-		operator           maxSize: 10
+		columnName         maxSize: 50
 		dimensionCode      maxSize: 700
+		dimensionTableName maxSize: 50
+		factTableColumn    maxSize: 50
+		operator           maxSize: 10
 	}
 
 	protected List<Patient> getPatients(OntologyTerm term) {
 
-		def definition = new QueryDefinition([
+		QueryDefinition definition = new QueryDefinition([
 				new Panel(invert: false, items: [new Item(conceptKey: term.key)])
 		])
 
@@ -76,10 +76,9 @@ abstract class AbstractQuerySpecifyingType implements MetadataSelectQuerySpecifi
 		if (patientIdList && patientIdList[0].getClass() != Long) {
 			patientIdList = patientIdList.collect({ it as Long })
 		}
-		PatientDimension.findAllByIdInList(patientIdList)
+		PatientDimension.findAllByIdInList patientIdList
 	}
 
-	@Override
 	String postProcessQuery(String sql, User user) {
 		sql
 	}

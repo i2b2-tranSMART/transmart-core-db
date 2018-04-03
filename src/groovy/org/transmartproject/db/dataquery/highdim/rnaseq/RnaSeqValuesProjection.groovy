@@ -26,32 +26,30 @@ import org.transmartproject.db.dataquery.highdim.projections.CriteriaProjection
 
 class RnaSeqValuesProjection implements CriteriaProjection<RnaSeqValues>, MultiValueProjection {
 
-    Map<String, Class> dataProperties = RnaSeqValues.metaClass.properties.collectEntries {
-        it.name != 'class' ? [(it.name): it.type] : [:]
-    }
+	Map<String, Class> dataProperties = RnaSeqValues.metaClass.properties.collectEntries {
+		it.name != 'class' ? [(it.name): it.type] : [:]
+	}
 
-    @Override
-    void doWithCriteriaBuilder(HibernateCriteriaBuilder builder) {
-        // RnaSeqModule.prepareDataQuery already projects all the columns
-    }
+	void doWithCriteriaBuilder(HibernateCriteriaBuilder builder) {
+		// RnaSeqModule.prepareDataQuery already projects all the columns
+	}
 
-    @Override
-    RnaSeqValues doWithResult(Object object) {
-        new RnaSeqValuesImpl(data: object)
-    }
+	RnaSeqValues doWithResult(object) {
+		new RnaSeqValuesImpl(data: object)
+	}
 
-    class RnaSeqValuesImpl implements RnaSeqValues {
+	class RnaSeqValuesImpl implements RnaSeqValues {
 
-        def data
+		def data
 
-        Long getAssayId() { data.assayId as Long }
+		Long getAssayId() { data.assayId as Long }
 
-        Integer getReadcount() { data.readcount as Integer }
+		Integer getReadcount() { data.readcount as Integer }
 
-        Double getNormalizedReadcount() { data.normalizedReadcount as Double }
+		Double getNormalizedReadcount() { data.normalizedReadcount as Double }
 
-        Double getLogNormalizedReadcount() { data.logNormalizedReadcount as Double }
+		Double getLogNormalizedReadcount() { data.logNormalizedReadcount as Double }
 
-        Double getZscore() { data.zscore as Double }
-    }
+		Double getZscore() { data.zscore as Double }
+	}
 }

@@ -6,23 +6,21 @@ import org.transmartproject.db.i2b2data.PatientTrialCoreDb
 
 class StudyPatientsConstraint implements PatientConstraint {
 
-    private final Study study
+	private final Study study
 
-    StudyPatientsConstraint(final Study study) {
-        this.study = study
+	StudyPatientsConstraint(Study study) {
+		this.study = study
 
-        assert this.study
-        assert this.study.id
-    }
+		assert this.study
+		assert this.study.id
+	}
 
-    @Override
-    void addToCriteria(Criteria criteria) {
-        criteria.in 'id', PatientTrialCoreDb.where {
-            projections {
-                property 'patient.id'
-            }
-            eq('study', this.study.id)
-        }
-    }
-
+	void addToCriteria(Criteria criteria) {
+		criteria.in 'id', PatientTrialCoreDb.where {
+			projections {
+				property 'patient.id'
+			}
+			eq 'study', study.id
+		}
+	}
 }

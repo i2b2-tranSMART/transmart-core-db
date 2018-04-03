@@ -31,35 +31,33 @@ import org.transmartproject.db.dataquery.clinical.variables.TerminalClinicalVari
 @ToString(includes = ['label', 'delegatingDataRow'])
 class PatientRowImpl implements PatientRow {
 
-    Patient patient
+	Patient patient
 
-    List<TerminalClinicalVariable> flattenedIndices
+	List<TerminalClinicalVariable> flattenedIndices
 
-    Map<String, DataRow<ClinicalVariableColumn, Object>> delegatingDataRows
+	Map<String, DataRow<ClinicalVariableColumn, Object>> delegatingDataRows
 
-    String getLabel() {
-        patient.inTrialId
-    }
+	String getLabel() {
+		patient.inTrialId
+	}
 
-    @Override
-    Object getAt(int index) {
-        getAt(flattenedIndices[index])
-    }
+	def getAt(int index) {
+		getAt flattenedIndices[index]
+	}
 
-    @Override
-    Object getAt(ClinicalVariableColumn column) {
-        /* the delegating data row only knows about TerminalConceptVariables */
-        if (column instanceof AbstractComposedVariable) {
-            column.getVariableValue(this)
-        } else {
-            assert column instanceof TerminalClinicalVariable
-            delegatingDataRows[column.group].getAt(column)
-        }
-    }
+	def getAt(ClinicalVariableColumn column) {
+		// the delegating data row only knows about TerminalConceptVariables
+		if (column instanceof AbstractComposedVariable) {
+			column.getVariableValue this
+		}
+		else {
+			assert column instanceof TerminalClinicalVariable
+			delegatingDataRows[column.group].getAt column
+		}
+	}
 
-    @Override
-    Iterator<Object> iterator() {
-        def innerIterators = delegatingDataRows.values()*.iterator()
-        Iterators.concat(innerIterators.iterator())
-    }
+	Iterator iterator() {
+		def innerIterators = delegatingDataRows.values()*.iterator()
+		Iterators.concat innerIterators.iterator()
+	}
 }

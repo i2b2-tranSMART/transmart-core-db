@@ -20,113 +20,121 @@
 package org.transmartproject.db.dataquery.highdim.parameterproducers
 
 import com.google.common.collect.Iterables
+import groovy.transform.CompileStatic
 import org.transmartproject.core.exceptions.InvalidArgumentsException
 
 /**
- * Class with static methods to help the simple validation/binding done in
- * parameter producers.
+ * Helps the simple validation/binding done in parameter producers.
  */
+@CompileStatic
 class BindingUtils {
 
-    static void validateParameterNames(List<String> parameterNames,
-                                       Map<String, Object> params) {
-        validateParameterNames(parameterNames as Set, params)
-    }
+	static void validateParameterNames(List<String> parameterNames,
+	                                   Map<String, Object> params) {
+		validateParameterNames parameterNames as Set, params
+	}
 
-    static void validateParameterNames(Set<String> parameterNames,
-                                       Map<String, Object> params) {
-        def missingParameters = parameterNames - params.keySet()
-        if (missingParameters) {
-            if (missingParameters.size() == 1) {
-                throw new InvalidArgumentsException('Missing required parameter "' +
-                        Iterables.getFirst(missingParameters, null) + '"; got ' +
-                        "the following parameters instead: ${params.keySet()}")
-            } else {
-                throw new InvalidArgumentsException('Missing several ' +
-                        "required parameters: $missingParameters; " +
-                        "got ${params.keySet()}")
-            }
-        }
-        def extraParameters = params.keySet() - parameterNames
-        if (extraParameters) {
-            throw new InvalidArgumentsException("Unrecognized parameters: " +
-                    "$extraParameters; only these are allowed: $parameterNames")
-        }
-    }
+	static void validateParameterNames(Set<String> parameterNames,
+	                                   Map<String, Object> params) {
+		Collection<String> missingParameters = parameterNames - params.keySet()
+		if (missingParameters) {
+			if (missingParameters.size() == 1) {
+				throw new InvalidArgumentsException('Missing required parameter "' +
+						Iterables.getFirst(missingParameters, null) + '"; got ' +
+						"the following parameters instead: ${params.keySet()}")
+			}
+			else {
+				throw new InvalidArgumentsException('Missing several ' +
+						"required parameters: $missingParameters; " +
+						"got ${params.keySet()}")
+			}
+		}
 
-    static <T> T getParam(Map params, String paramName, Class<T> type) {
-        def result = params[paramName]
+		Collection<String> extraParameters = params.keySet() - parameterNames
+		if (extraParameters) {
+			throw new InvalidArgumentsException("Unrecognized parameters: " +
+					"$extraParameters; only these are allowed: $parameterNames")
+		}
+	}
 
-        if (result == null) {
-            throw new InvalidArgumentsException("The parameter $paramName is not in map $params")
-        }
+	static <T> T getParam(Map params, String paramName, Class<T> type) {
+		def result = params[paramName]
+
+		if (result == null) {
+			throw new InvalidArgumentsException("The parameter $paramName is not in map $params")
+		}
 
 
-        if (!type.isAssignableFrom(result.getClass())) {
-            throw new InvalidArgumentsException("Expected parameter $paramName to be of type $type; " +
-                    "got class ${result.getClass()}")
-        }
+		if (!type.isAssignableFrom(result.getClass())) {
+			throw new InvalidArgumentsException("Expected parameter $paramName to be of type $type; " +
+					"got class ${result.getClass()}")
+		}
 
-        result
-    }
+		(T) result
+	}
 
-    static Long convertToLong(String paramName, Object obj) {
-        if (obj instanceof Number) {
-            obj = obj.longValue()
-        } else if (obj instanceof String && obj.isLong()) {
-            obj = obj.toLong()
-        } else {
-            throw new InvalidArgumentsException("Invalid value for $paramName: $obj")
-        }
-        obj
-    }
+	static Long convertToLong(String paramName, obj) {
+		if (obj instanceof Number) {
+			obj.longValue()
+		}
+		else if (obj instanceof String && obj.isLong()) {
+			obj.toLong()
+		}
+		else {
+			throw new InvalidArgumentsException("Invalid value for $paramName: $obj")
+		}
+	}
 
-    static List processList(String paramName, Object obj, Closure closure) {
-        if (!(obj instanceof List)) {
-            throw new InvalidArgumentsException("Parameter '$paramName' " +
-                    "is not a List, got a ${obj.getClass()}")
-        }
+	static List processList(String paramName, obj, Closure closure) {
+		if (!(obj instanceof List)) {
+			throw new InvalidArgumentsException("Parameter '$paramName' is not a List, got a ${obj.getClass()}")
+		}
 
-        if (obj.isEmpty()) {
-            throw new InvalidArgumentsException('Value of parameter ' +
-                    "'$paramName' is an empty list; this is unacceptable")
-        }
+		if (!(List)obj) {
+			throw new InvalidArgumentsException('Value of parameter ' +
+					"'$paramName' is an empty list; this is unacceptable")
+		}
 
-        obj.collect { closure.call it }
-    }
+		obj.collect { closure(it) }
+	}
 
-    static List<String> processStringList(String paramName, Object obj) {
-        processList paramName, obj, {
-            if (it instanceof String) {
-                it
-            } else if (it instanceof Number) {
-                it.toString()
-            } else {
-                throw new InvalidArgumentsException("Parameter '$paramName' " +
-                        "is not a list of String; found in a list an object with " +
-                        "type ${it.getClass()}")
-            }
-        }
-    }
+	static List<String> processStringList(String paramName, obj) {
+		processList paramName, obj, {
+			if (it instanceof String) {
+				it
+			}
+			else if (it instanceof Number) {
+				it.toString()
+			}
+			else {
+				throw new InvalidArgumentsException("Parameter '$paramName' " +
+						"is not a list of String; found in a list an object with " +
+						"type ${it.getClass()}")
+			}
+		}
+	}
 
-    static List<Long> processLongList(String paramName, Object obj) {
-        processList paramName, obj, {
-            if (it instanceof String) {
-                if (!it.isLong()) {
-                    throw new InvalidArgumentsException("Parameter '$paramName' " +
-                            "is not a list of longs; found in a list an object " +
-                            "with type ${it.getClass()}")
-                } else {
-                    it as Long
-                }
-            } else if (it instanceof Number) {
-                ((Number) it).longValue()
-            } else {
-                throw new InvalidArgumentsException("Parameter '$paramName' " +
-                        "is not a list of longs; found in a list an object " +
-                        "with type ${it.getClass()}")
-            }
-        }
-    }
+	static List<Long> processLongList(String paramName, obj) {
+		processList paramName, obj, {
+			if (it instanceof String) {
+				if (!it.isLong()) {
+					throw new InvalidArgumentsException("Parameter '$paramName' " +
+							"is not a list of longs; found in a list an object " +
+							"with type ${it.getClass()}")
+				}
+				else {
+					it as Long
+				}
+			}
+			else if (it instanceof Number) {
+				((Number) it).longValue()
+			}
+			else {
+				throw new InvalidArgumentsException("Parameter '$paramName' " +
+						"is not a list of longs; found in a list an object " +
+						"with type ${it.getClass()}")
+			}
+		}
+	}
 
 }

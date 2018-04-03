@@ -19,6 +19,7 @@
 package org.transmartproject.db.support
 
 import grails.orm.HibernateCriteriaBuilder
+import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import org.hibernate.Criteria
 import org.hibernate.criterion.LikeExpression
@@ -29,16 +30,19 @@ import java.sql.Connection
 import java.sql.DatabaseMetaData
 
 /**
- * Helper service to make it easier to write code that works on both Oracle and
- * PostgreSQL. Of course, the best option in this respect is to use Hibernate.
+ * Makes it easier to write code that works on both Oracle and PostgreSQL.
+ * Of course, the best option in this respect is to use Hibernate.
  */
 @Slf4j('logger')
 class DatabasePortabilityService {
 
+	static transactional = false
+
 	DataSource dataSource
 	DatabaseType databaseType
 
-	enum DatabaseType {
+	@CompileStatic
+	static enum DatabaseType {
 		POSTGRESQL,
 		ORACLE
 	}

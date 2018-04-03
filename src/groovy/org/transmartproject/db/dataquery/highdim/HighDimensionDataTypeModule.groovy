@@ -30,115 +30,96 @@ import org.transmartproject.core.dataquery.highdim.dataconstraints.DataConstrain
 import org.transmartproject.core.dataquery.highdim.projections.Projection
 import org.transmartproject.core.querytool.HighDimensionFilterType
 
-public interface HighDimensionDataTypeModule {
+interface HighDimensionDataTypeModule {
 
-    /**
-     * The name of the data type supported by this module.
-     * @return
-     */
-    String getName()
+	/**
+	 * The name of the data type supported by this module.
+	 */
+	String getName()
 
-    /**
-     * A human-readable description of this datatype
-     * @return
-     */
-    String getDescription()
+	/**
+	 * A human-readable description of this datatype
+	 */
+	String getDescription()
 
-    /**
-     * The session factory used by this module.
-     * @return
-     */
-    SessionFactory getSessionFactory()
+	/**
+	 * The session factory used by this module.
+	 */
+	SessionFactory getSessionFactory()
 
-    /**
-     * A set of assay constraints supported by this data type/
-     */
-    Set<String> getSupportedAssayConstraints()
+	/**
+	 * A set of assay constraints supported by this data type/
+	 */
+	Set<String> getSupportedAssayConstraints()
 
-    /**
-     * A set of data constraints supported by this data type.
-     */
-    Set<String> getSupportedDataConstraints()
+	/**
+	 * A set of data constraints supported by this data type.
+	 */
+	Set<String> getSupportedDataConstraints()
 
-    /**
-     * A set of projections supported by this data type,.
-     */
-    Set<String> getSupportedProjections()
+	/**
+	 * A set of projections supported by this data type,.
+	 */
+	Set<String> getSupportedProjections()
 
-    /**
-     * Creates an assay constraint from a name a set of parameters.
-     * @param name
-     * @param params
-     * @return
-     */
-    AssayConstraint createAssayConstraint(Map<String, Object> params, String name)
+	/**
+	 * Creates an assay constraint from a name a set of parameters.
+	 */
+	AssayConstraint createAssayConstraint(Map<String, Object> params, String name)
 
-    /**
-     * Creates a data constraint from a name a set of parameters.
-     * @param name
-     * @param params
-     * @return
-     */
-    DataConstraint createDataConstraint(Map<String, Object> params, String name)
+	/**
+	 * Creates a data constraint from a name a set of parameters.
+	 */
+	DataConstraint createDataConstraint(Map<String, Object> params, String name)
 
-    /**
-     * Creates a projection from a name a set of parameters.
-     * @param name
-     * @param params
-     * @return
-     */
-    Projection createProjection(Map<String, Object> params, String name)
+	/**
+	 * Creates a projection from a name a set of parameters.
+	 */
+	Projection createProjection(Map<String, Object> params, String name)
 
-    /**
-     * Prepares the Criteria-based query to be issued. The data constraints will
-     * have the opportunity to modify the criteria before it is issued.
-     * @param projection
-     * @return
-     */
-    HibernateCriteriaBuilder prepareDataQuery(Projection projection, SessionImplementor session)
+	/**
+	 * Prepares the Criteria-based query to be issued. The data constraints will
+	 * have the opportunity to modify the criteria before it is issued.
+	 */
+	HibernateCriteriaBuilder prepareDataQuery(Projection projection, SessionImplementor session)
 
-    /**
-     * Transform the query result into the final object to be returned by
-     * {@link HighDimensionDataTypeResource#retrieveData(List, List, Projection)}.
-     */
-    TabularResult transformResults(ScrollableResults results,
-                                     List<AssayColumn> assays,
-                                     Projection projection)
+	/**
+	 * Transform the query result into the final object to be returned by
+	 * {@link HighDimensionDataTypeResource#retrieveData(List, List, Projection)}.
+	 */
+	TabularResult transformResults(ScrollableResults results, List<AssayColumn> assays, Projection projection)
 
-    /**
-     * Returns a list of markertypes that are supported by this module
-     *
-     * See {@link HighDimensionDataTypeResource#matchesPlatform(Platform)}.
-     * See {@link DeGplInfo#getMarkerType()}.
-     *
-     * @return List of marker types supported by this module
-     */
-    List<String> getPlatformMarkerTypes()
+	/**
+	 * Returns a list of markertypes that are supported by this module
+	 *
+	 * See {@link HighDimensionDataTypeResource#matchesPlatform(Platform)}.
+	 * See {@link DeGplInfo#getMarkerType()}.
+	 *
+	 * @return marker types supported by this module
+	 */
+	List<String> getPlatformMarkerTypes()
 
-    /**
-     * Search through the annotations of a given concept_code, for entries in search_property
-     * starting with search_term.
-     * @param concept_code
-     * @param search_term
-     * @param search_property
-     * @return An alphabetical list of annotations that start with search_term (case insensitive match),
-     * or an empty list if the search_property is unsupported
-     */
-    List<String> searchAnnotation(String concept_code, String search_term, String search_property)
+	/**
+	 * Search through the annotations of a given concept_code, for entries in search_property
+	 * starting with search_term.
+	 * @return An alphabetical list of annotations that start with search_term (case insensitive match),
+	 * or an empty list if the search_property is unsupported
+	 */
+	List<String> searchAnnotation(String concept_code, String search_term, String search_property)
 
-    /**
-     * @return A list of properties that can be used as search_property in {@link #searchAnnotation(String, String, String)}.
-     */
-    List<String> getSearchableAnnotationProperties()
+	/**
+	 * @return A list of properties that can be used as search_property in {@link #searchAnnotation(String, String, String)}.
+	 */
+	List<String> getSearchableAnnotationProperties()
 
-    /**
-     * @return A list of projections supported for filtering assays (e.g. to be used in cohort selection)
-     */
-    List<String> getSearchableProjections()
+	/**
+	 * @return A list of projections supported for filtering assays (e.g. to be used in cohort selection)
+	 */
+	List<String> getSearchableProjections()
 
-    /**
-     * Get the {@link HighDimensionFilterType} for this high dimension data type.
-     * @return the filter type.
-     */
-    HighDimensionFilterType getHighDimensionFilterType()
+	/**
+	 * Get the {@link HighDimensionFilterType} for this high dimension data type.
+	 * @return the filter type.
+	 */
+	HighDimensionFilterType getHighDimensionFilterType()
 }

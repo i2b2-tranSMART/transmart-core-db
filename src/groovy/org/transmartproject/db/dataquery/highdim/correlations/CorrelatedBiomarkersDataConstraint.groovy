@@ -33,7 +33,7 @@ import org.hibernate.type.Type
 import org.transmartproject.db.dataquery.highdim.dataconstraints.CriteriaDataConstraint
 import org.transmartproject.db.search.SearchKeywordCoreDb
 
-/*
+/**
  * Search for biomarkers in this fashion:
  * - start with search keywords
  * - search in BIO_MARKER_CORREL_MV/SEARCH_BIO_MKR_CORREL_VIEW for correlations
@@ -46,11 +46,8 @@ import org.transmartproject.db.search.SearchKeywordCoreDb
 class CorrelatedBiomarkersDataConstraint implements CriteriaDataConstraint {
 
 	List<SearchKeywordCoreDb> searchKeywords
-
 	List<String> correlationTypes // hopefully these all map to the same data type!
-
 	String entityAlias // entity to restrict against the final primary ext ids
-
 	String propertyToRestrict // entity properties whose values will be matched
 	// against the final primary external ids
 
@@ -92,12 +89,11 @@ class CorrelatedBiomarkersDataConstraint implements CriteriaDataConstraint {
 			outer = c
 		}
 
-		@Override
 		String toSqlString(Criteria criteria, CriteriaQuery criteriaQuery) throws HibernateException {
 			Criteria relevantCriteria = criteriaQuery.getAliasedCriteria(outer.entityAlias)
 			if (relevantCriteria == null) {
 				throw new HibernateException('Could not find Criteria with alias ' + outer.entityAlias +
-								'. Available aliases are ' + criteriaQuery.aliasCriteriaMap.keySet())
+						'. Available aliases are ' + criteriaQuery.aliasCriteriaMap.keySet())
 			}
 
 			String entityName = criteriaQuery.getEntityName(relevantCriteria)

@@ -19,7 +19,11 @@
 
 package org.transmartproject.db.dataquery.clinical
 
-import com.google.common.collect.*
+import com.google.common.collect.AbstractIterator
+import com.google.common.collect.ImmutableList
+import com.google.common.collect.ImmutableMap
+import com.google.common.collect.Iterators
+import com.google.common.collect.PeekingIterator
 import com.google.common.io.Closer
 import groovy.transform.CompileStatic
 import groovy.transform.TypeCheckingMode
@@ -34,143 +38,131 @@ import org.transmartproject.db.dataquery.clinical.variables.TerminalClinicalVari
 @CompileStatic
 class ClinicalDataTabularResult implements TabularResult<TerminalClinicalVariable, PatientRow> {
 
-    private Collection<TerminalClinicalVariablesTabularResult> tabResults
+	private Collection<TerminalClinicalVariablesTabularResult> tabResults
 
-    private SortedMap<Long, Patient> patientMap
+	private SortedMap<Long, Patient> patientMap
 
-    private SessionImplementor session
+	private SessionImplementor session
 
-    List<TerminalClinicalVariable> indicesList
+	List<TerminalClinicalVariable> indicesList
 
-    Map<TerminalClinicalVariable, TerminalClinicalVariablesTabularResult> indexOwnerMap
+	Map<TerminalClinicalVariable, TerminalClinicalVariablesTabularResult> indexOwnerMap
 
-    @CompileStatic(TypeCheckingMode.PASS)
-    ClinicalDataTabularResult(SessionImplementor session,
-                              Collection<TerminalClinicalVariablesTabularResult> tabResults,
-                              SortedMap<Long, Patient> patientMap) {
-        this.session    = session
-        this.patientMap = patientMap
+	@CompileStatic(TypeCheckingMode.PASS)
+	ClinicalDataTabularResult(SessionImplementor session,
+	                          Collection<TerminalClinicalVariablesTabularResult> tabResults,
+	                          SortedMap<Long, Patient> patientMap) {
+		this.session = session
+		this.patientMap = patientMap
 
-        def indexOwnerBuilder  = ImmutableMap.builder()
-        def indicesListBuilder = ImmutableList.builder()
+		def indexOwnerBuilder = ImmutableMap.builder()
+		def indicesListBuilder = ImmutableList.builder()
 
-        tabResults.each { TerminalClinicalVariablesTabularResult tabResult ->
-            tabResult.indicesList.each { TerminalClinicalVariable variable ->
-                indexOwnerBuilder.put variable, tabResult
-                indicesListBuilder.add variable
-            }
-        }
+		for (TerminalClinicalVariablesTabularResult tabResult in tabResults) {
+			for (TerminalClinicalVariable variable in tabResult.indicesList) {
+				indexOwnerBuilder.put variable, tabResult
+				indicesListBuilder.add variable
+			}
+		}
 
-        this.tabResults    = tabResults
-        this.indexOwnerMap = indexOwnerBuilder.build()
-        this.indicesList   = indicesListBuilder.build()
-    }
+		this.tabResults = tabResults
+		indexOwnerMap = indexOwnerBuilder.build()
+		indicesList = indicesListBuilder.build()
+	}
 
-    @Override
-    Iterator<PatientRow> getRows() {
-        new ClinicalDataJoinedIterator(this)
-    }
+	Iterator<PatientRow> getRows() {
+		new ClinicalDataJoinedIterator(this)
+	}
 
-    @Override
-    Iterator<PatientRow> iterator() {
-        rows
-    }
+	Iterator<PatientRow> iterator() {
+		rows
+	}
 
-    @Override
-    String getColumnsDimensionLabel() {
-        tabResults.first().columnsDimensionLabel
-    }
+	String getColumnsDimensionLabel() {
+		tabResults.first().columnsDimensionLabel
+	}
 
-    @Override
-    String getRowsDimensionLabel() {
-        tabResults.first().rowsDimensionLabel
-    }
+	String getRowsDimensionLabel() {
+		tabResults.first().rowsDimensionLabel
+	}
 
-    @Override
-    @CompileStatic(TypeCheckingMode.SKIP)
-    void close() throws IOException {
-        Closer closer = Closer.create()
-        /* session must be last thing to be closed, so we have to add it to the
-         * the closer first */
-        closer.register(new Closeable() {
-            void close() throws IOException {
-                session.close()
-            }
-        })
-        tabResults.each { closer.register it }
-        closer.close()
-    }
+	@CompileStatic(TypeCheckingMode.SKIP)
+	void close() throws IOException {
+		Closer closer = Closer.create()
+		// session must be last thing to be closed, so we have to add it to the the closer first
+		closer.register new Closeable() {
+			void close() throws IOException {
+				session.close()
+			}
+		}
+		tabResults.each { closer.register it }
+		closer.close()
+	}
 }
 
 /** grails doesn't play well with inner classes */
 @CompileStatic
 class ClinicalDataJoinedIterator extends AbstractIterator<PatientRow> {
 
-    ClinicalDataTabularResult outer
+	ClinicalDataTabularResult outer
+	Iterator<Map.Entry<Long, Patient>> idToPatientEntries
+	List<PeekingIterator<PatientIdAnnotatedDataRow>> innerIterators = []
+	Map<Iterator<PatientIdAnnotatedDataRow>, DataRow> emptyRows = [:]
+	Map<Iterator<PatientIdAnnotatedDataRow>, String> groups = [:]
 
-    Iterator<Map.Entry<Long, Patient>> idToPatientEntries =
-            outer.patientMap.entrySet().iterator()
+	@CompileStatic(TypeCheckingMode.SKIP)
+	ClinicalDataJoinedIterator(ClinicalDataTabularResult outer) {
+		this.outer = outer
+		idToPatientEntries = outer.patientMap.entrySet().iterator()
+		for (tr in outer.tabResults) {
+			def newIterator = Iterators.peekingIterator(tr.iterator())
+			innerIterators << newIterator
+			emptyRows[newIterator] = createEmptyRow tr.indicesList
+			groups[newIterator] = tr.variableGroup
+		}
+	}
 
-    List<PeekingIterator<PatientIdAnnotatedDataRow>> innerIterators = []
+	protected PatientRow computeNext() {
+		if (!idToPatientEntries.hasNext()) {
+			if (innerIterators*.hasNext().any()) {
+				throw new UnexpectedResultException(
+						'Found end of patient list before end of data result set')
+			}
+			return endOfData()
+		}
 
-    Map<Iterator<PatientIdAnnotatedDataRow>, DataRow> emptyRows = [:]
+		Patient currentPatient = idToPatientEntries.next().value
 
-    Map<Iterator<PatientIdAnnotatedDataRow>, String> groups = [:]
+		/* patients with no data will not be in the result set returned by
+		 * conceptVariablesTabularResult, so we need to add empty rows
+		 * for those patients. Both patientMap and
+		 * conceptVariablesTabularResult should return results sorted by
+		 * patient id */
 
-    @CompileStatic(TypeCheckingMode.SKIP)
-    ClinicalDataJoinedIterator(ClinicalDataTabularResult outer) {
-        this.outer = outer
-        outer.tabResults.each { tr ->
-            def newIterator = Iterators.peekingIterator(tr.iterator())
-            innerIterators << newIterator
-            emptyRows[newIterator] = createEmptyRow tr.indicesList
-            groups[newIterator] = tr.variableGroup
-        }
-    }
+		Map delegatingDataRows = innerIterators.collectEntries {
+			PeekingIterator<PatientIdAnnotatedDataRow> innerIt ->
+				if (!innerIt.hasNext() || currentPatient.id != innerIt.peek().patientId) {
+					// empty row
+					[groups[innerIt], emptyRows[innerIt]]
+				}
+				else {
+					[groups[innerIt], innerIt.next()]
+				}
+		}
 
-    @Override
-    protected PatientRow computeNext() {
-        if (!idToPatientEntries.hasNext()) {
-            if (innerIterators*.hasNext().any()) {
-                throw new UnexpectedResultException(
-                        'Found end of patient list before end of data result set')
-            }
-            return endOfData()
-        }
+		new PatientRowImpl(
+				patient: currentPatient,
+				flattenedIndices: outer.indicesList,
+				delegatingDataRows: delegatingDataRows)
+	}
 
-        Patient currentPatient = idToPatientEntries.next().value
+	private PatientIdAnnotatedDataRow createEmptyRow(List<TerminalClinicalVariable> indices) {
+		int i = 0
 
-        /* patients with no data will not be in the result set returned by
-         * conceptVariablesTabularResult, so we need to add empty rows
-         * for those patients. Both patientMap and
-         * conceptVariablesTabularResult should return results sorted by
-         * patient id */
-
-        Map delegatingDataRows = innerIterators.collectEntries {
-            PeekingIterator<PatientIdAnnotatedDataRow> innerIt ->
-                if (!innerIt.hasNext() ||
-                        currentPatient.id != innerIt.peek().patientId) {
-                    // empty row
-                    [groups[innerIt], emptyRows[innerIt]]
-                } else {
-                    [groups[innerIt], innerIt.next()]
-                }
-        }
-
-        new PatientRowImpl(
-                patient: currentPatient,
-                flattenedIndices: outer.indicesList,
-                delegatingDataRows: delegatingDataRows)
-    }
-
-    private PatientIdAnnotatedDataRow createEmptyRow(
-            List<TerminalClinicalVariable> indices) {
-        int i = 0
-
-        // we don't need to actually fill the patient
-        // we actually use that fact to reuse the object
-        new PatientIdAnnotatedDataRow(
-                data: indices.collect { null },
-                columnToIndex: indices.collectEntries { [it, i++] })
-    }
+		// we don't need to actually fill the patient
+		// we actually use that fact to reuse the object
+		new PatientIdAnnotatedDataRow(
+				data: indices.collect { null },
+				columnToIndex: indices.collectEntries { [it, i++] })
+	}
 }

@@ -1,12 +1,16 @@
 package org.transmartproject.db.log
 
 import grails.transaction.Transactional
+import org.springframework.beans.factory.annotation.Autowired
+import org.transmart.plugin.shared.SecurityService
 import org.transmartproject.core.log.AccessLogEntryResource
 import org.transmartproject.core.users.User
 
 class AccessLogService implements AccessLogEntryResource {
 
-	def springSecurityService
+	static transactional = false
+
+	@Autowired private SecurityService securityService
 
 	@Transactional
 	AccessLogEntry report(Map<String, Object> additionalParams = [:], User user, String event) {
@@ -20,7 +24,7 @@ class AccessLogService implements AccessLogEntryResource {
 	}
 
 	@Transactional
-	AccessLogEntry report(String username = springSecurityService.principal.username, String event, String message) {
+	AccessLogEntry report(String username = securityService.currentUsername(), String event, String message) {
 		new AccessLogEntry(username: username, event: event, eventMessage: message, accessTime: new Date()).save()
 	}
 

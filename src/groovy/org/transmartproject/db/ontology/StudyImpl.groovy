@@ -27,28 +27,25 @@ import org.transmartproject.db.dataquery.clinical.patientconstraints.StudyPatien
 
 class StudyImpl implements Study {
 
-    String id
-    OntologyTerm ontologyTerm
+	String id
+	OntologyTerm ontologyTerm
 
-    @Override
-    Set<Patient> getPatients() {
-        new PatientQuery([
-                new StudyPatientsConstraint(this)
-        ]).list() as Set
-    }
+	Set<Patient> getPatients() {
+		new PatientQuery([new StudyPatientsConstraint(this)]).list() as Set
+	}
 
-    boolean equals(o) {
-        if (this.is(o)) {
-            return true
-        }
-        if (getClass() != o.class) {
-            return false
-        }
+	boolean equals(o) {
+		if (is(o)) {
+			return true
+		}
+		if (getClass() != o.class) {
+			return false
+		}
 
-        ontologyTerm?.name == o.ontologyTerm?.name
-    }
+		ontologyTerm?.name == o.ontologyTerm?.name
+	}
 
-    int hashCode() {
-        ontologyTerm?.name?.hashCode() ?: 0
-    }
+	int hashCode() {
+		ontologyTerm?.name?.hashCode() ?: 0
+	}
 }

@@ -19,82 +19,76 @@
 
 package org.transmartproject.db.dataquery.highdim.parameterproducers
 
-import org.apache.commons.logging.Log
-import org.apache.commons.logging.LogFactory
+import groovy.util.logging.Slf4j
 import org.transmartproject.core.exceptions.InvalidArgumentsException
 
 import static org.transmartproject.db.dataquery.highdim.parameterproducers.BindingUtils.getParam
 import static org.transmartproject.db.dataquery.highdim.parameterproducers.BindingUtils.validateParameterNames
 
+@Slf4j('logger')
 class DisjunctionConstraintFactory extends AbstractMethodBasedParameterFactory {
 
-    Class disjunctionConstraintClass,
-            noopConstraintClass
+	private static final String SUBCONSTRAINTS_PARAM = 'subconstraints'
 
-    DisjunctionConstraintFactory(Class disjunctionConstraintClass,
-                                 Class noopConstraintClass) {
-        this.disjunctionConstraintClass = disjunctionConstraintClass
-        this.noopConstraintClass = noopConstraintClass
-    }
+	Class disjunctionConstraintClass
+	Class noopConstraintClass
 
-    private static Log LOG = LogFactory.getLog this
+	DisjunctionConstraintFactory(Class disjunctionConstraintClass, Class noopConstraintClass) {
+		this.disjunctionConstraintClass = disjunctionConstraintClass
+		this.noopConstraintClass = noopConstraintClass
+	}
 
-    private static final String SUBCONSTRAINTS_PARAM = 'subconstraints'
+	@ProducerFor('disjunction')
+	def createDisjunctionConstraint(Map<String, Object> params, createConstraint) {
+		validateParameterNames([SUBCONSTRAINTS_PARAM], params)
+		Map<String, Object> subConstraintsSpecs = getParam(params, SUBCONSTRAINTS_PARAM, Map)
 
-    @ProducerFor('disjunction')
-    def createDisjunctionConstraint(Map<String, Object> params,
-                                    Object createConstraint) {
-        validateParameterNames([SUBCONSTRAINTS_PARAM], params)
-        Map<String, Object> subConstraintsSpecs =
-                getParam params, SUBCONSTRAINTS_PARAM, Map
+		List constraints = new LinkedList()
 
-        List constraints = new LinkedList()
+		if (!subConstraintsSpecs) {
+			logger.info "Sub-constraints map that was provided is empty; this disjunction constraint will be a no-op"
+			constraints << noopConstraintClass.newInstance()
+		}
+		else {
+			subConstraintsSpecs.each { String key, value ->
+				checkValue value
+				if (value instanceof Map) {
+					constraints << createConstraint(value, key)
+				}
+				else { //* value is List of maps
+					for (innerValue in value) {
+						checkIsMap innerValue
+						constraints << createConstraint(innerValue, key)
+					}
+				}
+			}
+		}
 
-        if (subConstraintsSpecs.size() == 0) {
-            LOG.info "Sub-constraints map that was provided is empty; this " +
-                    "disjunction constraint will be a no-op"
-            constraints << noopConstraintClass.newInstance()
-        } else {
-            subConstraintsSpecs.each {
-                String key, Object value ->
+		if (constraints.size() == 1) {
+			constraints[0]
+		}
+		else {
+			def ret = disjunctionConstraintClass.newInstance()
+			ret.constraints = constraints
+			ret
+		}
+	}
 
-                    checkValue value
-                    if (value instanceof Map) {
-                        constraints << createConstraint(value, key)
-                    } else { /* value is List of maps instead */
-                        value.each { def innerValue ->
-                            checkIsMap innerValue
-                            constraints << createConstraint(innerValue, key)
-                        }
-                    }
-            }
-        }
+	private static void checkIsMap(value) {
+		if (!(value instanceof Map)) {
+			throw new InvalidArgumentsException("On a disjunction constraint, " +
+					"the $SUBCONSTRAINTS_PARAM parameter must be a map whose " +
+					"values are themselves Maps or lists of maps; got a list " +
+					"that instead of a map had a ${value.getClass().name} with value $value")
+		}
+	}
 
-        if (constraints.size() == 1) {
-            constraints[0]
-        } else {
-            def ret = disjunctionConstraintClass.newInstance()
-            ret.constraints = constraints
-            ret
-        }
-    }
-
-    private static void checkIsMap(Object value) {
-        if (!(value instanceof Map)) {
-            throw new InvalidArgumentsException("On a disjunction constraint, " +
-                    "the $SUBCONSTRAINTS_PARAM parameter should be a map whose " +
-                    "values are themselves Maps or lists of maps; got a list " +
-                    "that instead of a map had a ${value.getClass()} with value $value")
-        }
-    }
-
-    private static void checkValue(Object value) {
-        if (!(value instanceof Map) && !(value instanceof List)) {
-            throw new InvalidArgumentsException("On a disjunction constraint, " +
-                    "the $SUBCONSTRAINTS_PARAM parameter should be a map whose " +
-                    "values are themselves Maps or lists of maps; got a " +
-                    "${value.getClass()} with value $value")
-        }
-    }
-
+	private static void checkValue(value) {
+		if (!(value instanceof Map) && !(value instanceof List)) {
+			throw new InvalidArgumentsException("On a disjunction constraint, " +
+					"the $SUBCONSTRAINTS_PARAM parameter must be a map whose " +
+					"values are themselves Maps or lists of maps; got a " +
+					"${value.getClass().name} with value $value")
+		}
+	}
 }

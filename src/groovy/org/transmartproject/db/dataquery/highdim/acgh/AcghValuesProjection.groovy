@@ -27,38 +27,36 @@ import org.transmartproject.db.dataquery.highdim.projections.CriteriaProjection
 
 class AcghValuesProjection implements CriteriaProjection<AcghValues>, MultiValueProjection {
 
-    Map<String, Class> dataProperties = AcghValues.metaClass.properties.collectEntries {
-        it.name != 'class' ? [(it.name): it.type] : [:]
-    }
+	Map<String, Class> dataProperties = AcghValues.metaClass.properties.collectEntries {
+		it.name != 'class' ? [(it.name): it.type] : [:]
+	}
 
-    @Override
-    void doWithCriteriaBuilder(HibernateCriteriaBuilder builder) {
-        // AcghModule.prepareDataQuery already projects all the columns
-    }
+	void doWithCriteriaBuilder(HibernateCriteriaBuilder builder) {
+		// AcghModule.prepareDataQuery already projects all the columns
+	}
 
-    @Override
-    AcghValues doWithResult(Object object) {
-        new AcghValuesImpl(data: object)
-    }
+	AcghValues doWithResult(object) {
+		new AcghValuesImpl(data: object)
+	}
 
-    class AcghValuesImpl implements AcghValues {
+	static class AcghValuesImpl implements AcghValues {
 
-        def data
+		def data
 
-        Long getAssayId() { data.assayId as Long }
+		Long getAssayId() { data.assayId as Long }
 
-        Double getChipCopyNumberValue() { data.chipCopyNumberValue as Double }
+		Double getChipCopyNumberValue() { data.chipCopyNumberValue as Double }
 
-        Double getSegmentCopyNumberValue() { data.segmentCopyNumberValue as Double }
+		Double getSegmentCopyNumberValue() { data.segmentCopyNumberValue as Double }
 
-        CopyNumberState getCopyNumberState() { CopyNumberState.forInteger((data.flag as Short).intValue()) }
+		CopyNumberState getCopyNumberState() { CopyNumberState.forInteger((data.flag as Short).intValue()) }
 
-        Double getProbabilityOfLoss() { data.probabilityOfLoss as Double }
+		Double getProbabilityOfLoss() { data.probabilityOfLoss as Double }
 
-        Double getProbabilityOfNormal() { data.probabilityOfNormal as Double }
+		Double getProbabilityOfNormal() { data.probabilityOfNormal as Double }
 
-        Double getProbabilityOfGain() { data.probabilityOfGain as Double }
+		Double getProbabilityOfGain() { data.probabilityOfGain as Double }
 
-        Double getProbabilityOfAmplification() { data.probabilityOfAmplification as Double }
-    }
+		Double getProbabilityOfAmplification() { data.probabilityOfAmplification as Double }
+	}
 }

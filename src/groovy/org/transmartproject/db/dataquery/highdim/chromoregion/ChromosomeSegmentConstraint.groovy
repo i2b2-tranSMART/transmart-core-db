@@ -24,39 +24,37 @@ import org.transmartproject.db.dataquery.highdim.dataconstraints.CriteriaDataCon
 
 class ChromosomeSegmentConstraint implements CriteriaDataConstraint {
 
-    //initialized with ChromosomeSegmentConstraintFactory
-    String regionPrefix
-    String regionChromosomeColumn
-    String regionStartColumn
-    String regionEndColumn
+	//initialized with ChromosomeSegmentConstraintFactory
+	String regionPrefix
+	String regionChromosomeColumn
+	String regionStartColumn
+	String regionEndColumn
 
-    String chromosome
-    Long   start,
-           end
+	String chromosome
+	Long start
+	Long end
 
-    //after construction, chromosome || (start && end)
+	//after construction, chromosome || (start && end)
 
-    @Override
-    void doWithCriteriaBuilder(HibernateCriteriaBuilder criteria) {
-        // NOTE: depends on the alias of DeChromosomalRegion in the Criteria
-        //       being called 'region'
-        criteria.with {
-            and {
-                if (chromosome) {
-                    eq regionPrefix + regionChromosomeColumn, chromosome
-                }
+	void doWithCriteriaBuilder(HibernateCriteriaBuilder criteria) {
+		// NOTE: depends on the alias of DeChromosomalRegion in the Criteria being called 'region'
+		criteria.with {
+			and {
+				if (chromosome) {
+					eq regionPrefix + regionChromosomeColumn, chromosome
+				}
 
-                if (start  != null && end != null) {
-                    or {
-                        between regionPrefix+regionStartColumn, start, end
-                        between regionPrefix+regionEndColumn,   start, end
-                        and {
-                            le regionPrefix + regionStartColumn, start
-                            ge regionPrefix + regionEndColumn,   end
-                        }
-                    }
-                }
-            }
-        }
-    }
+				if (start != null && end != null) {
+					or {
+						between regionPrefix + regionStartColumn, start, end
+						between regionPrefix + regionEndColumn, start, end
+						and {
+							le regionPrefix + regionStartColumn, start
+							ge regionPrefix + regionEndColumn, end
+						}
+					}
+				}
+			}
+		}
+	}
 }

@@ -19,28 +19,25 @@
 
 package org.transmartproject.db.dataquery.highdim
 
+import groovy.transform.CompileStatic
 import org.transmartproject.core.dataquery.DataRow
 import org.transmartproject.core.dataquery.highdim.AssayColumn
 
+@CompileStatic
 abstract class AbstractDataRow implements DataRow<AssayColumn, Object> {
 
-    Map<AssayColumn, Integer> assayIndexMap
+	Map<AssayColumn, Integer> assayIndexMap
+	List data
 
-    List<Object> data
+	def getAt(int index) {
+		data[index]
+	}
 
-    @Override
-    Object getAt(int index) {
-        data[index]
-    }
+	def getAt(AssayColumn column) {
+		data[assayIndexMap[column]]
+	}
 
-    @Override
-    Object getAt(AssayColumn column) {
-        data[assayIndexMap[column]]
-    }
-
-    @Override
-    Iterator<Object> iterator() {
-        data.iterator()
-    }
-
+	Iterator iterator() {
+		data.iterator()
+	}
 }

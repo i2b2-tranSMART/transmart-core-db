@@ -23,11 +23,10 @@ import org.grails.datastore.mapping.query.api.Criteria
 
 class PatientIdListCriteriaConstraint implements AssayCriteriaConstraint {
 
-    List<String> patientIdList
+	List<String> patientIdList
 
-    @Override
-    void addToCriteria(Criteria criteria) {
-        /** @see org.transmartproject.db.dataquery.highdim.DeSubjectSampleMapping */
-        criteria.in 'patientInTrialId', patientIdList
-    }
+	void addToCriteria(Criteria criteria) {
+		/** @see org.transmartproject.db.dataquery.highdim.DeSubjectSampleMapping */
+		criteria.in 'patientInTrialId', patientIdList
+	}
 }

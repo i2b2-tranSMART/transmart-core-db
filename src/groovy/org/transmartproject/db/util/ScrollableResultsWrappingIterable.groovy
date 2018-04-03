@@ -7,20 +7,17 @@ import org.transmartproject.core.IterableResult
 @CompileStatic
 class ScrollableResultsWrappingIterable<T> extends AbstractOneTimeCallIterable<T> implements IterableResult<T> {
 
-    protected final ScrollableResultsIterator scrollableResultsIterator
+	protected final ScrollableResultsIterator scrollableResultsIterator
 
-    ScrollableResultsWrappingIterable(ScrollableResults scrollableResults) {
-        this.scrollableResultsIterator = new ScrollableResultsIterator(scrollableResults)
-    }
+	ScrollableResultsWrappingIterable(ScrollableResults scrollableResults) {
+		scrollableResultsIterator = new ScrollableResultsIterator(scrollableResults)
+	}
 
-    @Override
-    protected Iterator getIterator() {
-        scrollableResultsIterator
-    }
+	protected Iterator getIterator() {
+		scrollableResultsIterator
+	}
 
-    @Override
-    void close() throws IOException {
-        scrollableResultsIterator.close()
-    }
-
+	void close() throws IOException {
+		scrollableResultsIterator.close()
+	}
 }
