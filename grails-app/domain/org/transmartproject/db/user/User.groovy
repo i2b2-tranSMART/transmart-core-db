@@ -21,6 +21,7 @@ package org.transmartproject.db.user
 
 import org.hibernate.FetchMode
 import org.springframework.beans.factory.annotation.Autowired
+import org.transmart.plugin.shared.security.Roles
 import org.transmartproject.core.ontology.Study
 import org.transmartproject.core.users.ProtectedOperation
 import org.transmartproject.core.users.ProtectedResource
@@ -80,7 +81,7 @@ class User extends PrincipalCoreDb implements org.transmartproject.core.users.Us
 	/* not in api */
 
 	boolean isAdmin() {
-		roles.find { it.authority == RoleCoreDb.ROLE_ADMIN_AUTHORITY }
+		roles.find { it.authority == Roles.ADMIN.authority }
 	}
 
 	@Override
