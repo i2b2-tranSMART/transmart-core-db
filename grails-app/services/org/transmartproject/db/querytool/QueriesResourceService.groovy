@@ -194,7 +194,7 @@ class QueriesResourceService implements QueriesResource {
 		Assert.hasLength username, 'Username not provided'
 
 		try {
-			usersResourceService.getUserFromUsername username
+			(User) usersResourceService.getUserFromUsername(username)
 		}
 		catch (NoSuchResourceException ignored) {
 			logger.warn 'User {} not found. This is permitted for compatibility with i2b2, ' +

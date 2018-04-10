@@ -27,7 +27,7 @@ class UsersResourceService implements UsersResource {
 
 	static transactional = false
 
-	User getUserFromUsername(String username) throws NoSuchResourceException {
+	org.transmartproject.core.users.User getUserFromUsername(String username) throws NoSuchResourceException {
 
 		/* prefetch the roles so that the object can be used when detached.
 		 * This saves us from having to reattach (or more likely refetch, since

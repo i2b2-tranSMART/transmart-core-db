@@ -80,26 +80,28 @@ class BusinessExceptionResolver implements ServletContextAware, HandlerException
 
 	ModelAndView resolveException(HttpServletRequest request, HttpServletResponse response, handler, Exception e) {
 
-		logger.info 'Asked BusinessExceptionResolver to resolve exception from handler ${handler}', e
+		logger.info 'Asked BusinessExceptionResolver to resolve exception from handler {}', handler, e
 
-		def exceptionPlusStatus = null
-		while (!exceptionPlusStatus && e) {
+		Throwable t = e // the resolveCause result might be an Error
+
+		Map exceptionPlusStatus = null
+		while (!exceptionPlusStatus && t) {
 			exceptionPlusStatus = statusCodeMappings.findResult {
-				if (it.key.isAssignableFrom(e.getClass())) {
-					return [(REQUEST_ATTRIBUTE_EXCEPTION): e, (REQUEST_ATTRIBUTE_STATUS): it.value]
+				if (it.key.isAssignableFrom(t.getClass())) {
+					return [(REQUEST_ATTRIBUTE_EXCEPTION): t, (REQUEST_ATTRIBUTE_STATUS): it.value]
 				}
 			}
 
-			e = resolveCause(e)
+			t = resolveCause(t)
 		}
 
 		if (!exceptionPlusStatus && handleAll) {
-			exceptionPlusStatus = [(REQUEST_ATTRIBUTE_EXCEPTION): e, (REQUEST_ATTRIBUTE_STATUS): SC_INTERNAL_SERVER_ERROR]
+			exceptionPlusStatus = [(REQUEST_ATTRIBUTE_EXCEPTION): t, (REQUEST_ATTRIBUTE_STATUS): SC_INTERNAL_SERVER_ERROR]
 		}
 
 		// we know this exception
 		if (exceptionPlusStatus) {
-			logger.debug 'BusinessExceptionResolver will handle exception {}', e.message
+			logger.debug 'BusinessExceptionResolver will handle exception {}', t.message
 			Map model = exceptionPlusStatus
 
 			UrlMappingInfo info = new DefaultUrlMappingInfo(
