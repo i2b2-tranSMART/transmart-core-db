@@ -35,7 +35,7 @@ class VcfCohortStatistics implements VcfCohortInfo {
 	// Cohort level properties
 	String majorAllele = '.'
 	String minorAllele = '.'
-	Double minorAlleleFrequency = 0.0
+	double minorAlleleFrequency = 0.0
 
 	VcfCohortStatistics(VcfDataRow dataRow) {
 		this.dataRow = dataRow

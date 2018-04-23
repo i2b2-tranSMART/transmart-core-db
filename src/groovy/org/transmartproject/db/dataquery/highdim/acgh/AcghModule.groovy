@@ -102,7 +102,7 @@ class AcghModule extends AbstractHighDimensionDataTypeModule {
 		[
 				new MapBasedParameterFactory(
 						(ACGH_VALUES_PROJECTION): { Map<String, Object> params ->
-							if (!params.isEmpty()) {
+							if (params) {
 								throw new InvalidArgumentsException('Expected no parameters here')
 							}
 							new AcghValuesProjection()

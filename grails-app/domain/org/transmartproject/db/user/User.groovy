@@ -19,6 +19,7 @@
 
 package org.transmartproject.db.user
 
+import groovy.util.logging.Slf4j
 import org.hibernate.FetchMode
 import org.springframework.beans.factory.annotation.Autowired
 import org.transmart.plugin.shared.security.Roles
@@ -27,6 +28,7 @@ import org.transmartproject.core.users.ProtectedOperation
 import org.transmartproject.core.users.ProtectedResource
 import org.transmartproject.db.accesscontrol.AccessControlChecks
 
+@Slf4j('logger')
 class User extends PrincipalCoreDb implements org.transmartproject.core.users.User {
 
 	@Autowired
@@ -78,38 +80,34 @@ class User extends PrincipalCoreDb implements org.transmartproject.core.users.Us
 		username nullable: true
 	}
 
-	/* not in api */
+	// not in api
 
 	boolean isAdmin() {
 		roles.find { it.authority == Roles.ADMIN.authority }
 	}
 
-	@Override
 	boolean canPerform(ProtectedOperation protectedOperation, ProtectedResource protectedResource) {
 
 		if (!accessControlChecks.respondsTo('canPerform',
 				[User, ProtectedOperation, protectedResource.getClass()] as Object[])) {
-			throw new UnsupportedOperationException("Do not know how to check " +
-					"access for user $this, operation $protectedOperation on " +
-					"$protectedResource")
+			throw new UnsupportedOperationException('Do not know how to check access for user ' +
+					this + ', operation ' + protectedOperation + ' on ' + protectedResource)
 		}
 
 		if (admin) {
-			/* administrators bypass all the checks */
-			log.debug "Bypassing check for $protectedOperation on " +
-					"$protectedResource for user $this because he is an " +
-					"administrator"
+			logger.debug 'Bypassing check for {} on {} for user {} because he is an administrator',
+					protectedOperation, protectedResource, this
 			return true
 		}
 
-		accessControlChecks.canPerform(this, protectedOperation, protectedResource)
+		accessControlChecks.canPerform this, protectedOperation, protectedResource
 	}
 
-	/* not in API */
+	// not in API
 
 	Set<Study> getAccessibleStudies() {
-		def studies = accessControlChecks.getAccessibleStudiesForUser(this)
-		log.debug "User $this has access to studies: ${studies*.id}"
+		Set<Study> studies = accessControlChecks.getAccessibleStudiesForUser(this)
+		logger.debug 'User {} has access to studies: {}', this, studies*.id
 		studies
 	}
 }

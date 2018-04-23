@@ -93,7 +93,7 @@ class RnaSeqModule extends AbstractHighDimensionDataTypeModule {
 	protected List<DataRetrievalParameterFactory> createProjectionFactories() {
 		[new MapBasedParameterFactory(
 				(RNASEQ_VALUES_PROJECTION): { Map<String, Object> params ->
-					if (!params.isEmpty()) {
+					if (params) {
 						throw new InvalidArgumentsException('Expected no parameters here')
 					}
 					new RnaSeqValuesProjection()
