@@ -31,7 +31,7 @@ import org.transmartproject.core.dataquery.DataColumn
 @ToString
 class TerminalConceptVariable implements TerminalClinicalVariable, DataColumn {
 
-	public static final String GROUP_NAME = this.simpleName
+	public static final String GROUP_NAME = TerminalConceptVariable.simpleName
 
 	// when created, only one needs to be filled, but then a postprocessing step must fill the other
 	String conceptCode

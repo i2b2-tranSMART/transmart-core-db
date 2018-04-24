@@ -32,7 +32,7 @@ import static org.transmartproject.db.ontology.AbstractAcrossTrialsOntologyTerm.
 @ToString
 class AcrossTrialsTerminalVariable implements TerminalClinicalVariable, DataColumn {
 
-	public static final String GROUP_NAME = this.simpleName
+	public static final String GROUP_NAME = AcrossTrialsTerminalVariable.simpleName
 
 	String conceptPath
 
