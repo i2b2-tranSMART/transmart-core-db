@@ -8,8 +8,6 @@ import org.transmartproject.core.users.User
 
 class AccessLogService implements AccessLogEntryResource {
 
-	static transactional = false
-
 	@Autowired private SecurityService securityService
 
 	@Transactional

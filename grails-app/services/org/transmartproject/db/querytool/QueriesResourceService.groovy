@@ -19,6 +19,7 @@
 
 package org.transmartproject.db.querytool
 
+import grails.transaction.Transactional
 import groovy.sql.Sql
 import groovy.transform.CompileDynamic
 import groovy.transform.CompileStatic
@@ -42,8 +43,6 @@ import javax.sql.DataSource
 @Slf4j('logger')
 class QueriesResourceService implements QueriesResource {
 
-	static transactional = false
-
 	@Value('${org.transmartproject.i2b2.group_id:]')
 	private String i2b2GroupId
 
@@ -61,6 +60,7 @@ class QueriesResourceService implements QueriesResource {
 		runQuery definition, i2b2UserId
 	}
 
+	@Transactional
 	QueryResult runQuery(QueryDefinition definition, String username) throws InvalidRequestException {
 		// 1. Populate qt_query_master
 		QtQueryMaster queryMaster = new QtQueryMaster(
