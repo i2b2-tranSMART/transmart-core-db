@@ -1,5 +1,6 @@
 package org.transmartproject.db.ontology
 
+import org.transmart.plugin.shared.Utils
 import org.transmartproject.core.ontology.OntologyTerm
 import org.transmartproject.core.ontology.OntologyTermTag
 import org.transmartproject.core.ontology.OntologyTermTagsResource
@@ -17,7 +18,7 @@ class OntologyTermTagsResourceService implements OntologyTermTagsResource {
 			or {
 				for (OntologyTerm term in ontologyTerms) {
 					if (includeDescendantsTags) {
-						like 'ontologyTermFullName', term.fullName.asLikeLiteral() + '%'
+						like 'ontologyTermFullName', Utils.asLikeLiteral(term.fullName) + '%'
 					}
 					else {
 						eq 'ontologyTermFullName', term.fullName

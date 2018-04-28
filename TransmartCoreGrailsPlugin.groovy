@@ -82,10 +82,6 @@ class TransmartCoreGrailsPlugin {
 		}
 	}
 
-	def doWithDynamicMethods = { ctx ->
-		String.metaClass.asLikeLiteral = { replaceAll(/[\\%_]/, '\\\\$0') }
-	}
-
 	def doWithApplicationContext = { ctx ->
 		// Force this bean to be initialized, as it has some dynamic methods to register during its init() method
 		ctx.getBean DatabasePortabilityService

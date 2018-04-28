@@ -19,6 +19,7 @@
 
 package org.transmartproject.db.ontology
 
+import org.transmart.plugin.shared.Utils
 import org.transmartproject.core.concept.ConceptFullName
 import org.transmartproject.core.concept.ConceptKey
 import org.transmartproject.core.dataquery.Patient
@@ -78,7 +79,7 @@ abstract class AbstractAcrossTrialsOntologyTerm implements OntologyTerm, Metadat
 
 		ModifierDimensionView.withCriteria {
 			if (pathPrefix) {
-				like 'path', pathPrefix.asLikeLiteral() + '%'
+				like 'path', Utils.asLikeLiteral(pathPrefix) + '%'
 			}
 			if (!allDescendants) {
 				eq 'level',

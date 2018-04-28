@@ -20,6 +20,7 @@
 package org.transmartproject.db.querytool
 
 import groovy.util.logging.Slf4j
+import org.transmart.plugin.shared.Utils
 import org.transmartproject.core.dataquery.highdim.HighDimensionDataTypeResource
 import org.transmartproject.core.exceptions.InvalidArgumentsException
 import org.transmartproject.core.exceptions.InvalidRequestException
@@ -297,7 +298,7 @@ class PatientSetQueryBuilderService {
 						if (v[-1] != '\\') {
 							v += '\\'
 						}
-						v = v.asLikeLiteral() + '%'
+						v = Utils.asLikeLiteral(v) + '%'
 					}
 				}
 			}

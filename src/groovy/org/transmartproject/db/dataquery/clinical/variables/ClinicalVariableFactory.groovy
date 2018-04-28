@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap
 import com.google.common.collect.Multimap
 import groovy.transform.CompileStatic
 import org.springframework.stereotype.Component
+import org.transmart.plugin.shared.Utils
 import org.transmartproject.core.concept.ConceptFullName
 import org.transmartproject.core.dataquery.clinical.ClinicalVariable
 import org.transmartproject.core.exceptions.InvalidArgumentsException
@@ -145,7 +146,7 @@ class ClinicalVariableFactory {
 		String resolvedConceptPath = resolveConceptPath(conceptCode, conceptPath)
 
 		List<? extends OntologyTerm> terms = I2b2.withCriteria {
-			'like' 'fullName', resolvedConceptPath.asLikeLiteral() + '%'
+			'like' 'fullName', Utils.asLikeLiteral(resolvedConceptPath) + '%'
 			order 'fullName', 'asc'
 		}
 
@@ -250,7 +251,7 @@ class ClinicalVariableFactory {
 		String resolvedConceptPath = resolveConceptPath(conceptCode, conceptPath)
 
 		List<ConceptDimension> result = ConceptDimension.withCriteria {
-			like 'conceptPath', resolvedConceptPath.asLikeLiteral() + '%'
+			like 'conceptPath', Utils.asLikeLiteral(resolvedConceptPath) + '%'
 
 			order 'conceptPath', 'asc'
 		}

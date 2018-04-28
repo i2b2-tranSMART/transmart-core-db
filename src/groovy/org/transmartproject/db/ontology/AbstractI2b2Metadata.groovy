@@ -20,6 +20,7 @@
 package org.transmartproject.db.ontology
 
 import groovy.transform.EqualsAndHashCode
+import org.transmart.plugin.shared.Utils
 import org.transmartproject.core.concept.ConceptKey
 import org.transmartproject.core.dataquery.Patient
 import org.transmartproject.core.ontology.OntologyTerm
@@ -156,7 +157,7 @@ abstract class AbstractI2b2Metadata extends AbstractQuerySpecifyingType implemen
 
 	private List<OntologyTerm> getDescendants(boolean allDescendants, boolean showHidden = false,
 	                                          boolean showSynonyms = false) {
-		String fullNameSearch = conceptKey.conceptFullName.toString().asLikeLiteral() + '%'
+		String fullNameSearch = Utils.asLikeLiteral(conceptKey.conceptFullName.toString()) + '%'
 
 		List<OntologyTerm> ret = createCriteria().list {
 			and {
