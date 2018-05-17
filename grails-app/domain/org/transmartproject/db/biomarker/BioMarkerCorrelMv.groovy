@@ -24,15 +24,13 @@ import groovy.transform.EqualsAndHashCode
 @EqualsAndHashCode(includes = ['bioMarker', 'associatedBioMarker'])
 class BioMarkerCorrelMv implements Serializable {
 
-	/* view in PostgreSQL, table in Oracle (sanofi) */
+	// view in PostgreSQL, table in Oracle (sanofi)
 
 	String correlationType
 	Long mvId
 
-	static belongsTo = [
-			bioMarker          : BioMarkerCoreDb, /* maybe these can come from other tables */
-			associatedBioMarker: BioMarkerCoreDb,
-	]
+	static belongsTo = [bioMarker          : BioMarkerCoreDb, // maybe these can come from other tables
+	                    associatedBioMarker: BioMarkerCoreDb]
 
 	static mapping = {
 		table schema: 'biomart'

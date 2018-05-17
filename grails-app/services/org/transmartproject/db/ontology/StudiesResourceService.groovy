@@ -45,9 +45,12 @@ class StudiesResourceService implements StudiesResource {
 		// the query is awkward (cross join) due to the non-existence of an
 		// association. See comment on I2b2TrialNodes
 
-		rows.collect { Object[] row ->
-			new StudyImpl(ontologyTerm: (OntologyTerm) row[0], id: (String) row[1])
-		} as Set<Study>
+		Set<Study> studies = []
+		for (Object[] row in rows) {
+			studies << new StudyImpl(ontologyTerm: (OntologyTerm) row[0], id: (String) row[1])
+		}
+
+		studies
 	}
 
 	Study getStudyById(String id) throws NoSuchResourceException {

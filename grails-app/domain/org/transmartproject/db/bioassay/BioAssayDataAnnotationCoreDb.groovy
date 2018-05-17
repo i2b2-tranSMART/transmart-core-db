@@ -26,10 +26,8 @@ import org.transmartproject.db.biomarker.BioMarkerCoreDb
 class BioAssayDataAnnotationCoreDb implements Serializable {
 	String dataTable
 
-	static belongsTo = [
-			bioMarker: BioMarkerCoreDb,
-			probeSet : BioAssayFeatureGroupCoreDb,
-	]
+	static belongsTo = [bioMarker: BioMarkerCoreDb,
+	                    probeSet : BioAssayFeatureGroupCoreDb]
 
 	static mapping = {
 		table 'biomart.bio_assay_data_annotation'

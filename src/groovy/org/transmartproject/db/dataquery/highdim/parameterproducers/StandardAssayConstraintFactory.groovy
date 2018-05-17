@@ -36,12 +36,6 @@ import org.transmartproject.db.dataquery.highdim.assayconstraints.DisjunctionAss
 import org.transmartproject.db.dataquery.highdim.assayconstraints.NoopAssayCriteriaConstraint
 import org.transmartproject.db.dataquery.highdim.assayconstraints.PatientIdListCriteriaConstraint
 
-import static org.transmartproject.db.dataquery.highdim.parameterproducers.BindingUtils.convertToLong
-import static org.transmartproject.db.dataquery.highdim.parameterproducers.BindingUtils.getParam
-import static org.transmartproject.db.dataquery.highdim.parameterproducers.BindingUtils.processLongList
-import static org.transmartproject.db.dataquery.highdim.parameterproducers.BindingUtils.processStringList
-import static org.transmartproject.db.dataquery.highdim.parameterproducers.BindingUtils.validateParameterNames
-
 @Component
 class StandardAssayConstraintFactory extends AbstractMethodBasedParameterFactory {
 
@@ -60,7 +54,7 @@ class StandardAssayConstraintFactory extends AbstractMethodBasedParameterFactory
 			throw new InvalidArgumentsException("Expected exactly one parameter (concept_key), got $params")
 		}
 
-		String conceptKey = getParam(params, 'concept_key', String)
+		String conceptKey = BindingUtils.getParam(params, 'concept_key')
 
 		try {
 			OntologyTerm term = conceptsResource.getByKey(conceptKey)
@@ -77,8 +71,8 @@ class StandardAssayConstraintFactory extends AbstractMethodBasedParameterFactory
 			throw new InvalidArgumentsException("Expected exactly one parameter (result_instance_id), got $params")
 		}
 
-		Long resultInstanceId = convertToLong(
-				'result_instance_id', getParam(params, 'result_instance_id', Object))
+		Long resultInstanceId = BindingUtils.convertToLong(
+				'result_instance_id', BindingUtils.getParam(params, 'result_instance_id', Object))
 
 		QueryResult result
 		try {
@@ -93,22 +87,22 @@ class StandardAssayConstraintFactory extends AbstractMethodBasedParameterFactory
 
 	@ProducerFor(AssayConstraint.TRIAL_NAME_CONSTRAINT)
 	AssayConstraint createTrialNameConstraint(Map<String, Object> params) {
-		validateParameterNames(['name'], params)
-		String name = getParam(params, 'name', String)
+		BindingUtils.validateParameterNames(['name'], params)
+		String name = BindingUtils.getParam(params, 'name')
 		new DefaultTrialNameCriteriaConstraint(trialName: name)
 	}
 
 	@ProducerFor(AssayConstraint.ASSAY_ID_LIST_CONSTRAINT)
 	AssayConstraint createAssayIdListConstraint(Map<String, Object> params) {
-		validateParameterNames(['ids'], params)
-		List<Long> ids = processLongList('ids', params.ids)
+		BindingUtils.validateParameterNames(['ids'], params)
+		List<Long> ids = BindingUtils.processLongList('ids', params)
 		new AssayIdListCriteriaConstraint(ids: ids)
 	}
 
 	@ProducerFor(AssayConstraint.PATIENT_ID_LIST_CONSTRAINT)
 	AssayConstraint createPatientIdListConstraint(Map<String, Object> params) {
-		validateParameterNames(['ids'], params)
-		List<String> ids = processStringList('ids', params.ids)
+		BindingUtils.validateParameterNames(['ids'], params)
+		List<String> ids = BindingUtils.processStringList('ids', params)
 		new PatientIdListCriteriaConstraint(patientIdList: ids)
 	}
 

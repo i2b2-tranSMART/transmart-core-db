@@ -32,11 +32,9 @@ class DeSubjectProteinData implements Serializable {
 
 	DeProteinAnnotation jAnnotation
 
-	static belongsTo = [
-			annotation: DeProteinAnnotation,
-			assay     : DeSubjectSampleMapping,
-			patient   : PatientDimension
-	]
+	static belongsTo = [annotation: DeProteinAnnotation,
+	                    assay     : DeSubjectSampleMapping,
+	                    patient   : PatientDimension]
 
 	static mapping = {
 		table schema: 'deapp'

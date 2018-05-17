@@ -23,10 +23,9 @@ import org.transmartproject.db.user.PrincipalCoreDb
 
 class SecuredObjectAccess {
 
-	static belongsTo = [
-			accessLevel  : AccessLevel,
-			principal    : PrincipalCoreDb,
-			securedObject: SecuredObject]
+	static belongsTo = [accessLevel  : AccessLevel,
+	                    principal    : PrincipalCoreDb,
+	                    securedObject: SecuredObject]
 
 	static mapping = {
 		table 'searchapp.search_auth_sec_object_access'

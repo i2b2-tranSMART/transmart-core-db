@@ -13,10 +13,6 @@ class DeTwoRegionEventGene implements Serializable, EventGene {
 	DeTwoRegionEvent event
 	String geneId
 
-	Long getEventId() {
-		event.id
-	}
-
 	static constraints = {
 		effect nullable: true, maxSize: 500
 		geneId nullable: true, maxSize: 50

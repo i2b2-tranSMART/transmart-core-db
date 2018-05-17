@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMap
 import grails.orm.HibernateCriteriaBuilder
 import org.hibernate.ScrollableResults
 import org.hibernate.engine.SessionImplementor
+import org.hibernate.sql.JoinFragment
 import org.hibernate.transform.Transformers
 import org.springframework.beans.factory.annotation.Autowired
 import org.transmartproject.core.dataquery.TabularResult
@@ -65,10 +66,10 @@ class TwoRegionModule extends AbstractHighDimensionDataTypeModule {
 				DeTwoRegionJunction, 'junction', session)
 
 		criteriaBuilder.with {
-			createAlias 'junctionEvents', 'junctionEvents', LEFT_JOIN
-			createAlias 'junctionEvents.event', 'event', LEFT_JOIN
-			createAlias 'junctionEvents.event.eventGenes', 'eventGenes', LEFT_JOIN
-			createAlias 'assay', 'assay', INNER_JOIN
+			createAlias 'junctionEvents', 'junctionEvents', JoinFragment.LEFT_OUTER_JOIN
+			createAlias 'junctionEvents.event', 'event', JoinFragment.LEFT_OUTER_JOIN
+			createAlias 'junctionEvents.event.eventGenes', 'eventGenes', JoinFragment.LEFT_OUTER_JOIN
+			createAlias 'assay', 'assay', JoinFragment.INNER_JOIN
 
 			order 'id', 'asc' // important
 			// no need to order by assay because groups only contain one assay

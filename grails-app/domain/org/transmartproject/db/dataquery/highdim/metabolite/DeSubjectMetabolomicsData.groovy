@@ -31,11 +31,9 @@ class DeSubjectMetabolomicsData implements Serializable {
 	double rawIntensity
 	double zscore
 
-	static belongsTo = [
-			annotation: DeMetaboliteAnnotation,
-			assay     : DeSubjectSampleMapping,
-			patient   : PatientDimension
-	]
+	static belongsTo = [annotation: DeMetaboliteAnnotation,
+	                    assay     : DeSubjectSampleMapping,
+	                    patient   : PatientDimension]
 
 	static mapping = {
 		table schema: 'deapp'

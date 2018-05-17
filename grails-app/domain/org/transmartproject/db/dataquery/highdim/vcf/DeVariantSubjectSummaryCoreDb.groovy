@@ -23,7 +23,7 @@ import org.transmartproject.db.dataquery.highdim.DeSubjectSampleMapping
 
 class DeVariantSubjectSummaryCoreDb {
 
-	static final Integer REF_ALLELE = 0
+	static final int REF_ALLELE = 0
 
 	Integer allele1
 	Integer allele2
@@ -38,7 +38,8 @@ class DeVariantSubjectSummaryCoreDb {
 	String variantFormat
 	String variantType
 
-	static belongsTo = [assay: DeSubjectSampleMapping, dataset: DeVariantDatasetCoreDb]
+	static belongsTo = [assay: DeSubjectSampleMapping,
+	                    dataset: DeVariantDatasetCoreDb]
 	//TODO: implement constraint on dataset
 
 	static constraints = {

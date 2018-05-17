@@ -22,6 +22,7 @@ package org.transmartproject.db.dataquery.highdim.rnaseq
 import grails.orm.HibernateCriteriaBuilder
 import org.hibernate.ScrollableResults
 import org.hibernate.engine.SessionImplementor
+import org.hibernate.sql.JoinFragment
 import org.hibernate.transform.Transformers
 import org.springframework.beans.factory.annotation.Autowired
 import org.transmartproject.core.dataquery.TabularResult
@@ -112,8 +113,8 @@ class RnaSeqModule extends AbstractHighDimensionDataTypeModule {
 				DeSubjectRnaseqData, 'rnaseqdata', session)
 
 		criteriaBuilder.with {
-			createAlias 'jRegion', 'region', INNER_JOIN
-			createAlias 'jRegion.platform', 'platform', INNER_JOIN
+			createAlias 'jRegion', 'region', JoinFragment.INNER_JOIN
+			createAlias 'jRegion.platform', 'platform', JoinFragment.INNER_JOIN
 
 			projections {
 				property 'rnaseqdata.assay.id', 'assayId'

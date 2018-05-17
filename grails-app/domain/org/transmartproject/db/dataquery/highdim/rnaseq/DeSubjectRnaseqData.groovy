@@ -40,11 +40,9 @@ class DeSubjectRnaseqData implements RnaSeqValues, Serializable {
 	/* unused; should be the same as assay.patient */
 	PatientDimension patient
 
-	static belongsTo = [
-			assay  : DeSubjectSampleMapping,
-			patient: PatientDimension,
-			region : DeChromosomalRegion
-	]
+	static belongsTo = [assay  : DeSubjectSampleMapping,
+	                    patient: PatientDimension,
+	                    region : DeChromosomalRegion]
 
 	static mapping = {
 		table schema: 'deapp'

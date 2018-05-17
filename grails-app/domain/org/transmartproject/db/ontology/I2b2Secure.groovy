@@ -27,7 +27,7 @@ class I2b2Secure extends AbstractI2b2Metadata implements Serializable {
 
 	static mapping = {
 		table name: 'I2B2_SECURE', schema: 'I2B2METADATA'
-		id name: 'fullName'
+		id name: 'fullName', generator: 'assigned'
 		version false
 
 		secureObjectToken column: 'secure_obj_token'

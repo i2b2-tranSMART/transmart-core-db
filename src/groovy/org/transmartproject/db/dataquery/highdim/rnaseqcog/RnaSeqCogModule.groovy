@@ -22,6 +22,7 @@ package org.transmartproject.db.dataquery.highdim.rnaseqcog
 import grails.orm.HibernateCriteriaBuilder
 import org.hibernate.ScrollableResults
 import org.hibernate.engine.SessionImplementor
+import org.hibernate.sql.JoinFragment
 import org.hibernate.transform.Transformers
 import org.springframework.beans.factory.annotation.Autowired
 import org.transmartproject.core.dataquery.TabularResult
@@ -66,7 +67,7 @@ class RnaSeqCogModule extends AbstractHighDimensionDataTypeModule {
 				DeSubjectRnaData, 'rnadata', session)
 
 		criteriaBuilder.with {
-			createAlias 'jAnnotation', 'ann', INNER_JOIN
+			createAlias 'jAnnotation', 'ann', JoinFragment.INNER_JOIN
 
 			projections {
 				property 'assay.id', 'assayId'

@@ -9,10 +9,9 @@ class StudyPatientsConstraint implements PatientConstraint {
 	private final Study study
 
 	StudyPatientsConstraint(Study study) {
+		assert study
+		assert study.id
 		this.study = study
-
-		assert this.study
-		assert this.study.id
 	}
 
 	void addToCriteria(Criteria criteria) {

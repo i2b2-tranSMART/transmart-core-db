@@ -77,8 +77,8 @@ class HighDimensionResourceService implements HighDimensionResource {
 				// fetch platforms
 			}
 
-			for (AssayCriteriaConstraint constraint in assayConstraints) {
-				constraint.addToCriteria owner.delegate
+			assayConstraints.each { AssayConstraint constraint ->
+				((AssayCriteriaConstraint) constraint).addToCriteria owner.delegate
 			}
 
 			isNotNull 'platform'
@@ -86,12 +86,10 @@ class HighDimensionResourceService implements HighDimensionResource {
 
 		HashMultimap multiMap = HashMultimap.create()
 		for (Assay a in assays) {
-			String dataTypeName = cachingDataTypeResourceForPlatform.call a.platform
-			if (!dataTypeName) {
-				continue
+			String dataTypeName = cachingDataTypeResourceForPlatform.call(a.platform)
+			if (dataTypeName) {
+				multiMap.put cachingDataTypeResourceProducer.call(dataTypeName), a
 			}
-
-			multiMap.put cachingDataTypeResourceProducer(dataTypeName), a
 		}
 
 		multiMap.asMap()
@@ -108,7 +106,7 @@ class HighDimensionResourceService implements HighDimensionResource {
 	@Lazy
 	Closure<String> cachingDataTypeResourceForPlatform = { Platform p ->
 		dataTypeRegistry.keySet().find { String dataTypeName ->
-			cachingDataTypeResourceProducer(dataTypeName).matchesPlatform(p)
+			cachingDataTypeResourceProducer.call(dataTypeName).matchesPlatform(p)
 		} // may return null
 	}.memoizeAtMost(MAX_CACHED_PLATFORM_MAPPINGS)
 

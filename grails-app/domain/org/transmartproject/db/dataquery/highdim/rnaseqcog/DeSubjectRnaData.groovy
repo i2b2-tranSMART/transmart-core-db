@@ -32,11 +32,9 @@ class DeSubjectRnaData implements Serializable {
 
 	DeRnaseqAnnotation jAnnotation //due to criteria bug
 
-	static belongsTo = [
-			annotation: DeRnaseqAnnotation,
-			assay     : DeSubjectSampleMapping,
-			patient   : PatientDimension
-	]
+	static belongsTo = [annotation: DeRnaseqAnnotation,
+	                    assay     : DeSubjectSampleMapping,
+	                    patient   : PatientDimension]
 
 	static mapping = {
 		table schema: 'deapp'

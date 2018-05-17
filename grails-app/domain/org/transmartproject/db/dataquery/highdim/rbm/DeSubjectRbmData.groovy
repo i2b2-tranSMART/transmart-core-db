@@ -31,11 +31,9 @@ class DeSubjectRbmData {
 
 	static hasMany = [annotations: DeRbmAnnotation]
 
-	static belongsTo = [
-			annotations: DeRbmAnnotation,
-			assay      : DeSubjectSampleMapping,
-			patient    : PatientDimension
-	]
+	static belongsTo = [annotations: DeRbmAnnotation,
+	                    assay      : DeSubjectSampleMapping,
+	                    patient    : PatientDimension]
 
 	static mapping = {
 		table 'deapp.de_subject_rbm_data'

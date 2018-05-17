@@ -20,11 +20,11 @@
 package org.transmartproject.db.ontology
 
 import groovy.transform.EqualsAndHashCode
+import groovy.util.slurpersupport.GPathResult
 import org.transmart.plugin.shared.Utils
 import org.transmartproject.core.concept.ConceptKey
 import org.transmartproject.core.dataquery.Patient
 import org.transmartproject.core.ontology.OntologyTerm
-import org.transmartproject.core.ontology.OntologyTerm.VisualAttributes
 import org.transmartproject.core.ontology.Study
 
 @EqualsAndHashCode(includes = ['fullName', 'name'])
@@ -67,7 +67,7 @@ abstract class AbstractI2b2Metadata extends AbstractQuerySpecifyingType implemen
 		fullName          size: 2..700
 		level             min: 0
 		metadataxml       nullable: true
-		name size:        1..2000
+		name              size: 1..2000
 		tooltip           nullable: true, maxSize: 900
 
 		AbstractQuerySpecifyingType.constraints.delegate = delegate
@@ -116,30 +116,31 @@ abstract class AbstractI2b2Metadata extends AbstractQuerySpecifyingType implemen
 		conceptKey.toString()
 	}
 
-	def getMetadata() {
+	Map getMetadata() {
 		if (!metadataxml) {
 			return null
 		}
 
-		def slurper = new XmlSlurper().parseText(metadataxml)
-		def ret = [:]
+		GPathResult slurper = new XmlSlurper().parseText(metadataxml)
+		Map metadata = [:]
 
-		/* right now we only care about normalunits and oktousevalues */
-		ret.okToUseValues = slurper.Oktousevalues == 'Y'
-		ret.unitValues = [
+		// right now we only care about normalunits and oktousevalues
+		metadata.okToUseValues = slurper.Oktousevalues == 'Y'
+		metadata.unitValues = [
 				normalUnits: slurper.UnitValues?.NormalUnits?.toString(),
 				equalUnits : slurper.UnitValues?.EqualUnits?.toString(),
 		]
 
 		def seriesMeta = slurper.SeriesMeta
 		if (seriesMeta) {
-			ret.seriesMeta = [
+			metadata.seriesMeta = [
 					unit : seriesMeta.Unit?.toString(),
 					value: seriesMeta.Value?.toString(),
 					label: seriesMeta.DisplayName?.toString(),
 			]
 		}
-		ret
+
+		metadata
 	}
 
 	Study getStudy() {

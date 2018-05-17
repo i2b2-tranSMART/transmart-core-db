@@ -274,7 +274,7 @@ class HighDimensionDataTypeResourceImpl implements HighDimensionDataTypeResource
 
 	String toString() {
 		'HighDimensionDataTypeResourceImpl{dataTypeName=' + dataTypeName +
-				', identity=' + System.identityHashCode(this)
+				', identity=' + System.identityHashCode(this) + '}'
 	}
 
 	boolean equals(o) {

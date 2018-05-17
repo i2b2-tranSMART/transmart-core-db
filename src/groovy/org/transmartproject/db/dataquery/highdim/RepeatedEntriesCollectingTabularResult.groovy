@@ -50,7 +50,7 @@ class RepeatedEntriesCollectingTabularResult<T extends AbstractDataRow> {
 		PeekingIterator<T> sourceIterator
 
 		RepeatedEntriesCollectingIterator(Iterator<T> sourceIterator) {
-			sourceIterator = (PeekingIterator<T>) Iterators.peekingIterator((Iterator) sourceIterator)
+			this.sourceIterator = (PeekingIterator<T>) Iterators.peekingIterator((Iterator) sourceIterator)
 		}
 
 		protected T computeNext() {

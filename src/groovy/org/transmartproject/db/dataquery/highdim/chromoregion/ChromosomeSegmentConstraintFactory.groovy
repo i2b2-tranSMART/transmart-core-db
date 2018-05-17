@@ -52,7 +52,7 @@ class ChromosomeSegmentConstraintFactory extends AbstractMethodBasedParameterFac
 
 		params.each { String key, value ->
 			if (key == SEGMENT_CHROMOSOME_PARAM) {
-				chromosome = BindingUtils.getParam(params, SEGMENT_CHROMOSOME_PARAM, String)
+				chromosome = BindingUtils.getParam(params, SEGMENT_CHROMOSOME_PARAM)
 				if (!chromosome) {
 					throw new InvalidArgumentsException('chromosome parameter cannot be empty')
 				}

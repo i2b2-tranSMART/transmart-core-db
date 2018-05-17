@@ -33,11 +33,9 @@ class DeSubjectMicroarrayDataCoreDb implements Serializable {
 
 	DeMrnaAnnotationCoreDb jProbe //see comment on mapping
 
-	static belongsTo = [
-			assay  : DeSubjectSampleMapping,
-			patient: PatientDimension,
-			probe  : DeMrnaAnnotationCoreDb
-	]
+	static belongsTo = [assay  : DeSubjectSampleMapping,
+	                    patient: PatientDimension,
+	                    probe  : DeMrnaAnnotationCoreDb]
 
 	static mapping = {
 		table 'deapp.de_subject_microarray_data'

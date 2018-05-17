@@ -153,7 +153,7 @@ class ClinicalDataJoinedIterator extends AbstractIterator<PatientRow> {
 		new PatientRowImpl(
 				patient: currentPatient,
 				flattenedIndices: outer.indicesList,
-				delegatingDataRows: delegatingDataRows)
+				delegatingDataRows: delegatingDataRows as Map)
 	}
 
 	private PatientIdAnnotatedDataRow createEmptyRow(List<TerminalClinicalVariable> indices) {

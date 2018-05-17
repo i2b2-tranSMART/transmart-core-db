@@ -1,4 +1,3 @@
-package org.transmartproject.db.log
 /*************************************************************************
  * tranSMART - translational medicine data mart
  *
@@ -17,6 +16,7 @@ package org.transmartproject.db.log
  *
  *
  ******************************************************************/
+package org.transmartproject.db.log
 
 /**
  * Provides access to the logging table
@@ -37,5 +37,11 @@ class AccessLogEntry implements org.transmartproject.core.log.AccessLogEntry {
 		eventMessage type: 'text'
 		requestURL column: 'REQUEST_URL'
 		username column: 'USER_NAME'
+	}
+
+	static constraints = {
+		eventMessage nullable: true
+		requestURL nullable: true
+		username blank: false
 	}
 }

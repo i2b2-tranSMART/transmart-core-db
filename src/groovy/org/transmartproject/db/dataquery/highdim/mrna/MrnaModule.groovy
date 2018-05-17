@@ -22,6 +22,7 @@ package org.transmartproject.db.dataquery.highdim.mrna
 import grails.orm.HibernateCriteriaBuilder
 import org.hibernate.ScrollableResults
 import org.hibernate.engine.SessionImplementor
+import org.hibernate.sql.JoinFragment
 import org.hibernate.transform.Transformers
 import org.springframework.beans.factory.annotation.Autowired
 import org.transmartproject.core.dataquery.TabularResult
@@ -60,7 +61,7 @@ class MrnaModule extends AbstractHighDimensionDataTypeModule {
 				DeSubjectMicroarrayDataCoreDb, 'mrnadata', session)
 
 		criteriaBuilder.with {
-			createAlias 'jProbe', 'p', INNER_JOIN
+			createAlias 'jProbe', 'p', JoinFragment.INNER_JOIN
 
 			projections {
 				property 'assay.id', 'assayId'

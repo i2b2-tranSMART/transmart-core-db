@@ -77,10 +77,10 @@ class ClinicalVariableFactory {
 		String conceptCode
 		String conceptPath
 		if (params.concept_code) {
-			conceptCode = BindingUtils.getParam(params, 'concept_code', String)
+			conceptCode = BindingUtils.getParam(params, 'concept_code')
 		}
 		else if (params.concept_path) {
-			conceptPath = BindingUtils.getParam params, 'concept_path', String
+			conceptPath = BindingUtils.getParam(params, 'concept_path')
 		}
 		else {
 			throw new InvalidArgumentsException("Expected the given parameter " +
@@ -185,7 +185,7 @@ class ClinicalVariableFactory {
 				if (parentName) {
 					blackListedCategorical << parentName
 				}
-				return
+				continue
 			}
 
 			// non-numeric leaf now
@@ -193,16 +193,16 @@ class ClinicalVariableFactory {
 			if (conceptNameObj.length == 1) {
 				// no parent, so not a candidate for categorical variable
 				composingVariables << new TerminalConceptVariable(conceptPath: ot.fullName)
-				return
+				continue
 			}
 
 			if (!indexedTerms.containsKey(parentName)) {
 				// parent has NOT been selected
 				composingVariables << new TerminalConceptVariable(conceptPath: ot.fullName)
-				return
+				continue
 			}
 
-			potentialCategorical[parentName] = ot.fullName
+			potentialCategorical.put parentName, ot.fullName
 		}
 
 		potentialCategorical.asMap().collect { String parentName, Collection<String> childrenNames ->

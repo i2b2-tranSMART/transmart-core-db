@@ -24,12 +24,10 @@ import com.google.common.collect.ImmutableSet
 import com.google.common.collect.Iterables
 import org.transmartproject.core.dataquery.highdim.dataconstraints.DataConstraint
 import org.transmartproject.core.exceptions.InvalidArgumentsException
+import org.transmartproject.db.dataquery.highdim.parameterproducers.BindingUtils
 import org.transmartproject.db.dataquery.highdim.parameterproducers.DataRetrievalParameterFactory
 import org.transmartproject.db.dataquery.highdim.parameterproducers.MapBasedParameterFactory
 import org.transmartproject.db.search.SearchKeywordCoreDb
-
-import static org.transmartproject.db.dataquery.highdim.parameterproducers.BindingUtils.processLongList
-import static org.transmartproject.db.dataquery.highdim.parameterproducers.BindingUtils.processStringList
 
 class SearchKeywordDataConstraintFactory implements DataRetrievalParameterFactory {
 
@@ -82,7 +80,7 @@ class SearchKeywordDataConstraintFactory implements DataRetrievalParameterFactor
 					"Could not find the parameter 'keyword_ids'")
 		}
 
-		List<Long> keywordIds = processLongList 'keyword_ids', params.keyword_ids
+		List<Long> keywordIds = BindingUtils.processLongList('keyword_ids', params)
 
 		SearchKeywordDataConstraint.createForSearchKeywordIds(
 				entityAlias: alias,
@@ -108,7 +106,7 @@ class SearchKeywordDataConstraintFactory implements DataRetrievalParameterFactor
 
 		List<SearchKeywordCoreDb> keywords
 		if (params.containsKey('names')) {
-			List names = processStringList 'names', params.names
+			List<String> names = BindingUtils.processStringList('names', params)
 
 			keywords = SearchKeywordCoreDb.findAllByKeywordInListAndDataCategory(names, correlation.sourceType)
 			if (!keywords) {
@@ -120,9 +118,9 @@ class SearchKeywordDataConstraintFactory implements DataRetrievalParameterFactor
 		else if (params.containsKey('ids')) {
 			// these ids are the 'external' ids, not the search keyword PKs
 
-			List ids = processStringList 'ids', params.ids
+			List<String> ids = BindingUtils.processStringList('ids', params)
 
-			List<String> uniqueIds = ids.collect { "$correlation.sourceType:$it" as String }
+			List<String> uniqueIds = ids.collect { correlation.sourceType + ':' + it }
 			keywords = SearchKeywordCoreDb.findAllByUniqueIdInListAndDataCategory(
 					uniqueIds, correlation.sourceType)
 

@@ -22,9 +22,6 @@ package org.transmartproject.db.dataquery.highdim.parameterproducers
 import groovy.util.logging.Slf4j
 import org.transmartproject.core.exceptions.InvalidArgumentsException
 
-import static org.transmartproject.db.dataquery.highdim.parameterproducers.BindingUtils.getParam
-import static org.transmartproject.db.dataquery.highdim.parameterproducers.BindingUtils.validateParameterNames
-
 @Slf4j('logger')
 class DisjunctionConstraintFactory extends AbstractMethodBasedParameterFactory {
 
@@ -40,8 +37,8 @@ class DisjunctionConstraintFactory extends AbstractMethodBasedParameterFactory {
 
 	@ProducerFor('disjunction')
 	def createDisjunctionConstraint(Map<String, Object> params, createConstraint) {
-		validateParameterNames([SUBCONSTRAINTS_PARAM], params)
-		Map<String, Object> subConstraintsSpecs = getParam(params, SUBCONSTRAINTS_PARAM, Map)
+		BindingUtils.validateParameterNames([SUBCONSTRAINTS_PARAM], params)
+		Map<String, Object> subConstraintsSpecs = BindingUtils.getParam(params, SUBCONSTRAINTS_PARAM, Map)
 
 		List constraints = new LinkedList()
 

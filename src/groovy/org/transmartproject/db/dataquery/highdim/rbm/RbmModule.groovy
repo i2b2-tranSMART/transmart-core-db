@@ -22,6 +22,7 @@ package org.transmartproject.db.dataquery.highdim.rbm
 import grails.orm.HibernateCriteriaBuilder
 import org.hibernate.ScrollableResults
 import org.hibernate.engine.SessionImplementor
+import org.hibernate.sql.JoinFragment
 import org.hibernate.transform.Transformers
 import org.springframework.beans.factory.annotation.Autowired
 import org.transmartproject.core.dataquery.TabularResult
@@ -79,7 +80,7 @@ class RbmModule extends AbstractHighDimensionDataTypeModule {
 				DeSubjectRbmData, 'rbmdata', session)
 
 		criteriaBuilder.with {
-			createAlias 'annotations', 'p', INNER_JOIN
+			createAlias 'annotations', 'p', JoinFragment.INNER_JOIN
 
 			projections {
 				property 'assay.id', 'assayId'

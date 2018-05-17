@@ -22,6 +22,7 @@ package org.transmartproject.db.dataquery.highdim.protein
 import grails.orm.HibernateCriteriaBuilder
 import org.hibernate.ScrollableResults
 import org.hibernate.engine.SessionImplementor
+import org.hibernate.sql.JoinFragment
 import org.hibernate.transform.Transformers
 import org.springframework.beans.factory.annotation.Autowired
 import org.transmartproject.core.dataquery.TabularResult
@@ -66,7 +67,7 @@ class ProteinModule extends AbstractHighDimensionDataTypeModule {
 
 	protected List<DataRetrievalParameterFactory> createDataConstraintFactories() {
 		[searchKeywordDataConstraintFactory,
-		 new SimpleAnnotationConstraintFactory(field: 'annotation', annotationClass: DeProteinAnnotation.class),
+		 new SimpleAnnotationConstraintFactory(field: 'annotation', annotationClass: DeProteinAnnotation),
 		 standardDataConstraintFactory]
 	}
 
@@ -83,8 +84,8 @@ class ProteinModule extends AbstractHighDimensionDataTypeModule {
 				DeSubjectProteinData, 'proteindata', session)
 
 		criteriaBuilder.with {
-			createAlias 'jAnnotation', 'a', INNER_JOIN
-			createAlias 'jAnnotation.platform', 'platform', INNER_JOIN
+			createAlias 'jAnnotation', 'a', JoinFragment.INNER_JOIN
+			createAlias 'jAnnotation.platform', 'platform', JoinFragment.INNER_JOIN
 
 			projections {
 				property 'assay.id', 'assayId'

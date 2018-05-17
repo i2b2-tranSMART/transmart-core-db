@@ -32,11 +32,9 @@ class DeSubjectMirnaData implements Serializable {
 
 	DeQpcrMirnaAnnotation jProbe //see comment on mapping
 
-	static belongsTo = [
-			assay  : DeSubjectSampleMapping,
-			patient: PatientDimension,
-			probe  : DeQpcrMirnaAnnotation
-	]
+	static belongsTo = [assay  : DeSubjectSampleMapping,
+	                    patient: PatientDimension,
+	                    probe  : DeQpcrMirnaAnnotation]
 
 	static mapping = {
 		table schema: 'deapp'

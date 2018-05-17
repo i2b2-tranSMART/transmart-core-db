@@ -75,9 +75,9 @@ class CorrelatedBiomarkersDataConstraint implements CriteriaDataConstraint {
 				CAST ({alias}.{property} AS VARCHAR(200)) IN (
 				SELECT bm.primary_external_id
 				FROM biomart.bio_marker bm
-				INNER JOIN $c.correlationTable correl ON correl.asso_bio_marker_id = bm.bio_marker_id
+				INNER JOIN ''' + c.correlationTable + ''' correl ON correl.asso_bio_marker_id = bm.bio_marker_id
 				WHERE correl.correl_type IN (''' + c.correlationTypes.collect { '?' }.join(', ') + ')' + '''
-				AND correl.$c.correlationColumn IN (''' + c.searchKeywords.collect { '?' }.join(', ') + ')' + '''
+				AND correl.''' + c.correlationColumn + ' IN (' + c.searchKeywords.collect { '?' }.join(', ') + ')' + '''
 				)''',
 					(c.correlationTypes + c.searchKeywords*.bioDataId) as Object[],
 					(c.correlationTypes.collect { StringType.INSTANCE } +

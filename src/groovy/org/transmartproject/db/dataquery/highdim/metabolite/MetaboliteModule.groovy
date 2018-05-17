@@ -22,6 +22,7 @@ package org.transmartproject.db.dataquery.highdim.metabolite
 import grails.orm.HibernateCriteriaBuilder
 import org.hibernate.ScrollableResults
 import org.hibernate.engine.SessionImplementor
+import org.hibernate.sql.JoinFragment
 import org.hibernate.transform.Transformers
 import org.springframework.beans.factory.annotation.Autowired
 import org.transmartproject.core.dataquery.TabularResult
@@ -107,7 +108,7 @@ class MetaboliteModule extends AbstractHighDimensionDataTypeModule {
 				DeSubjectMetabolomicsData, 'metabolitedata', session)
 
 		criteriaBuilder.with {
-			createAlias 'jAnnotation', 'a', INNER_JOIN
+			createAlias 'jAnnotation', 'a', JoinFragment.INNER_JOIN
 
 			projections {
 				property 'assay.id', 'assayId'

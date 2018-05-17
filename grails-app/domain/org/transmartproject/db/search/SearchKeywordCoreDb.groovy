@@ -28,7 +28,7 @@ class SearchKeywordCoreDb {
 	 * bio_marker_correl_mv.bio_marker_id
 	 */
 	Long bioDataId
-	String uniqueId            /* for genes: GENE: primary_external_id (in bio_marker) */
+	String uniqueId            // for genes: GENE: primary_external_id (in bio_marker)
 	String dataCategory
 	String displayDataCategory
 
