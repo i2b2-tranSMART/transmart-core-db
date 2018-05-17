@@ -74,8 +74,8 @@ abstract class AbstractI2b2Metadata extends AbstractQuerySpecifyingType implemen
 		AbstractQuerySpecifyingType.constraints()
 	}
 
-	EnumSet<VisualAttributes> getVisualAttributes() {
-		VisualAttributes.forSequence cVisualattributes
+	EnumSet<OntologyTerm.VisualAttributes> getVisualAttributes() {
+		OntologyTerm.VisualAttributes.forSequence cVisualattributes
 	}
 
 	boolean isSynonym() {

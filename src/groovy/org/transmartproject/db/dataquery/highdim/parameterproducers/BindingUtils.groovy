@@ -31,7 +31,8 @@ class BindingUtils {
 
 	static void validateParameterNames(Collection<String> parameterNames,
 	                                   Map<String, Object> params) {
-		Collection<String> missingParameters = parameterNames - params.keySet()
+		Collection<String> missingParameters = [] + parameterNames
+		missingParameters.removeAll params.keySet()
 		if (missingParameters) {
 			if (missingParameters.size() == 1) {
 				throw new InvalidArgumentsException('Missing required parameter "' +
