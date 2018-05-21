@@ -23,7 +23,7 @@ import groovy.util.logging.Slf4j
 import org.codehaus.groovy.grails.web.mapping.DefaultUrlMappingInfo
 import org.codehaus.groovy.grails.web.mapping.UrlMappingData
 import org.codehaus.groovy.grails.web.mapping.UrlMappingInfo
-import org.codehaus.groovy.grails.web.util.WebUtils
+import org.codehaus.groovy.grails.web.mapping.UrlMappingUtils
 import org.springframework.core.Ordered
 import org.springframework.web.context.ServletContextAware
 import org.springframework.web.servlet.HandlerExceptionResolver
@@ -105,19 +105,19 @@ class BusinessExceptionResolver implements ServletContextAware, HandlerException
 			Map model = exceptionPlusStatus
 
 			UrlMappingInfo info = new DefaultUrlMappingInfo(
-					(Object) null, /* redirectInfo */
+					(Object) null, // redirectInfo
 					controllerName,
 					actionName,
-					(Object) null, /* namespace */
-					(Object) null, /* pluginName */
-					(Object) null, /* viewName */
-					(String) null, /* method */
-					(String) null, /* version */
-					[:],           /* params */
+					(Object) null, // namespace
+					(Object) null, // pluginName
+					(Object) null, // viewName
+					(String) null, // method
+					(String) null, // version
+					[:],           // params
 					(UrlMappingData) null,
 					servletContext)
 
-			WebUtils.forwardRequestForUrlMappingInfo request, response, info, model, true
+			UrlMappingUtils.forwardRequestForUrlMappingInfo request, response, info, model, true
 
 			return EMPTY_MV
 		}
