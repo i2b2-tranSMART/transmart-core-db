@@ -36,6 +36,7 @@ class AccessLogService implements AccessLogEntryResource {
 		if (entry.hasErrors()) {
 			logger.error 'Problem(s) saving AccessLogEntry: {}', utilService.errorStrings(entry)
 		}
+		entry
 	}
 
 	List<AccessLogEntry> listEvents(Map<String, Object> paginationParams = [:], Date startDate, Date endDate) {

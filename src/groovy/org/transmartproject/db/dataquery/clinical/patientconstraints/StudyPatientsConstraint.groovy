@@ -19,7 +19,7 @@ class StudyPatientsConstraint implements PatientConstraint {
 			projections {
 				property 'patient.id'
 			}
-			eq 'study', study.id
+			eq 'study', this.study.id
 		}
 	}
 }

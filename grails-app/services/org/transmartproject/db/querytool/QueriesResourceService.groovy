@@ -43,10 +43,10 @@ import javax.sql.DataSource
 @Slf4j('logger')
 class QueriesResourceService implements QueriesResource {
 
-	@Value('${org.transmartproject.i2b2.group_id:]')
+	@Value('${org.transmartproject.i2b2.group_id:}')
 	private String i2b2GroupId
 
-	@Value('${org.transmartproject.i2b2.user_id:]')
+	@Value('${org.transmartproject.i2b2.user_id:}')
 	private String i2b2UserId
 
 	@Autowired private DataSource dataSource
