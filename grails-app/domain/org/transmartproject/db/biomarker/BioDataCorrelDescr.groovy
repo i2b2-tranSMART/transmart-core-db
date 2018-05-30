@@ -31,7 +31,7 @@ class BioDataCorrelDescr {
 	static hasMany = [correlationRows: BioDataCorrelationCoreDb]
 
 	static mapping = {
-		table name: 'biomart.bio_data_correl_descr'
+		table 'biomart.bio_data_correl_descr'
 		id column: 'bio_data_correl_descr_id', generator: 'assigned'
 		version false
 	}

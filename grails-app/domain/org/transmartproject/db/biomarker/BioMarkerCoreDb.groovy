@@ -29,7 +29,7 @@ class BioMarkerCoreDb {
 	String type
 
 	static mapping = {
-		table name: 'biomart.bio_marker'
+		table 'biomart.bio_marker'
 		id column: 'bio_marker_id', generator: 'assigned'
 		version false
 

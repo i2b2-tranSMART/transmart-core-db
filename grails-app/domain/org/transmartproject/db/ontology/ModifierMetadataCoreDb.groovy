@@ -10,8 +10,8 @@ class ModifierMetadataCoreDb implements Serializable {
 	 * must be unique) */
 	String code //id
 
-	String valueType
 	String unit
+	String valueType
 	Character visitInd = (char) 'N'
 
 	static transients = ['visit']
@@ -27,19 +27,18 @@ class ModifierMetadataCoreDb implements Serializable {
 	}
 
 	static mapping = {
-		table schema: 'i2b2demodata', name: 'modifier_metadata'
+		table 'i2b2demodata.modifier_metadata'
 		id generator: 'assigned', name: 'code'
 		version false
 
 		code column: 'modifier_cd'
-		valueType column: 'valtype_cd'
 		unit column: 'std_units'
+		valueType column: 'valtype_cd'
 	}
 
 	static constraints = {
 		code maxSize: 50
 		unit nullable: true, maxSize: 50
 		valueType nullable: true, maxSize: 10
-		visitInd nullable: false
 	}
 }

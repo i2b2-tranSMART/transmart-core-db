@@ -23,7 +23,6 @@ import groovy.transform.EqualsAndHashCode
 
 @EqualsAndHashCode
 class DeVariantSubjectIdxCoreDb implements Serializable {
-	DeVariantDatasetCoreDb dataset
 	Long position
 	String subjectId
 

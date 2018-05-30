@@ -10,7 +10,7 @@ class ModifierDimensionCoreDb {
 	String studyId
 
 	static mapping = {
-		table schema: 'i2b2demodata', name: 'modifier_dimension'
+		table 'i2b2demodata.modifier_dimension'
 		id name: 'path', generator: 'assigned'
 		version false
 

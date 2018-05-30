@@ -24,6 +24,8 @@ import org.transmartproject.db.biomarker.BioMarkerCoreDb
 
 @EqualsAndHashCode(includes = ['bioMarker', 'probeSet'])
 class BioAssayDataAnnotationCoreDb implements Serializable {
+	private static final long serialVersionUID = 1
+
 	String dataTable
 
 	static belongsTo = [bioMarker: BioMarkerCoreDb,
@@ -34,7 +36,6 @@ class BioAssayDataAnnotationCoreDb implements Serializable {
 		id composite: ['bioMarker', 'probeSet']
 		version false
 
-		bioMarker column: 'bio_marker_id'
 		probeSet column: 'bio_assay_feature_group_id'
 	}
 
