@@ -28,7 +28,6 @@ import org.hibernate.SessionFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.util.Assert
-import org.transmart.plugin.shared.UtilService
 import org.transmartproject.core.exceptions.InvalidRequestException
 import org.transmartproject.core.exceptions.NoSuchResourceException
 import org.transmartproject.core.querytool.QueriesResource
@@ -44,20 +43,17 @@ import javax.sql.DataSource
 @Slf4j('logger')
 class QueriesResourceService implements QueriesResource {
 
-	static datasource = 'core'
-
 	@Value('${org.transmartproject.i2b2.group_id:}')
 	private String i2b2GroupId
 
 	@Value('${org.transmartproject.i2b2.user_id:}')
 	private String i2b2UserId
 
-	@Autowired private DataSource dataSource_core
+	@Autowired private DataSource dataSource
 	@Autowired private PatientSetQueryBuilderService patientSetQueryBuilderService
 	@Autowired private QueryDefinitionXmlService queryDefinitionXmlService
-	@Autowired private SessionFactory sessionFactory_core
+	@Autowired private SessionFactory sessionFactory
 	@Autowired private UsersResourceService usersResourceService
-	@Autowired private UtilService utilService
 
 	@Deprecated
 	QueryResult runQuery(QueryDefinition definition) throws InvalidRequestException {
@@ -92,19 +88,19 @@ class QueriesResourceService implements QueriesResource {
 
 		// 4. Save the three objects
 		if (!queryMaster.validate()) {
-			throw new InvalidRequestException('Could not create a valid QtQueryMaster: ' + utilService.errorStrings(queryMaster))
+			throw new InvalidRequestException('Could not create a valid QtQueryMaster: ' + queryMaster.errors)
 		}
 		if (!queryMaster.save()) {
 			throw new RuntimeException('Failure saving QtQueryMaster')
 		}
 
 		// 5. Flush session so objects are inserted & raw SQL can access them
-		sessionFactory_core.currentSession.flush()
+		sessionFactory.currentSession.flush()
 
 		// 6. Build the patient set
 		long setSize
 		String sqlString = '<NOT BUILT>'
-		Sql sql = new Sql(dataSource_core)
+		Sql sql = new Sql(dataSource)
 		try {
 			sql.execute 'SAVEPOINT doWork'
 
@@ -158,7 +154,7 @@ class QueriesResourceService implements QueriesResource {
 
 		if (!resultInstance.save()) {
 			throw new RuntimeException('Failure saving resultInstance after ' +
-					'successfully building patient set. Errors: ' + utilService.errorStrings(resultInstance))
+					'successfully building patient set. Errors: ' + resultInstance.errors)
 		}
 
 		// 8. Return result instance
