@@ -51,6 +51,6 @@ class QtQueryInstance {
 		groupId maxSize: 50
 		message nullable: true
 		statusTypeId nullable: true
-		userId maxSize: 50
+		userId maxSize: 255
 	}
 }
