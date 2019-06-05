@@ -57,7 +57,7 @@ class QtQueryMaster {
 		name maxSize: 250
 		pluginId nullable: true
 		requestXml nullable: true
-		userId maxSize: 50
+		userId maxSize: 255
 	}
 
 	String toString() {
