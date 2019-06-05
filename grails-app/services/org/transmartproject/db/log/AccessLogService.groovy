@@ -16,12 +16,14 @@ class AccessLogService implements AccessLogEntryResource {
 
 	@Transactional
 	AccessLogEntry report(Map<String, Object> additionalParams = [:], User user, String event) {
+		logger.info String.join(',', 'AuditLog', user.username, event, additionalParams.eventMessage)
 		save user.username, event, additionalParams.eventMessage,
 				additionalParams.requestURL, additionalParams.accessTime ?: new Date()
 	}
 
 	@Transactional
 	AccessLogEntry report(String username = securityService.currentUsername(), String event, String message) {
+		logger.info String.join(',', 'AuditLog', username, event, message)
 		save username, event, message, null, new Date()
 	}
 
